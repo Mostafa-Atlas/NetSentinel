@@ -1,17 +1,70 @@
 import os
+import uuid
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import sessionmaker
 
-app = FastAPI(title="NetSentinel", version="0.1.0")
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+from netsentinel import auth, scopes
+from netsentinel.db import make_engine
 
 
-static_dir = Path(os.getenv("NETSENTINEL_STATIC_DIR", ""))
-if os.getenv("NETSENTINEL_STATIC_DIR") and static_dir.is_dir():
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
+def create_app(database_url: str | None = None) -> FastAPI:
+    app = FastAPI(title="NetSentinel", version="0.1.0")
+    engine = make_engine(
+        database_url or os.getenv("NETSENTINEL_DATABASE_URL") or "sqlite:///./netsentinel.db"
+    )
+    app.state.engine = engine
+    app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
+    app.state.login_attempts = {}
+
+    @app.middleware("http")
+    async def request_id(request: Request, call_next):
+        request.state.request_id = uuid.uuid4().hex
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request.state.request_id
+        return response
+
+    @app.exception_handler(HTTPException)
+    async def http_error(request: Request, exc: HTTPException):
+        detail = (
+            exc.detail
+            if isinstance(exc.detail, dict)
+            else {"code": "http_error", "message": str(exc.detail)}
+        )
+        return JSONResponse(
+            status_code=exc.status_code, content={**detail, "request_id": request.state.request_id}
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={
+                "code": "validation_error",
+                "message": "Invalid request",
+                "details": [
+                    {"loc": [str(x) for x in item["loc"]], "message": item["msg"]}
+                    for item in exc.errors()
+                ],
+                "request_id": request.state.request_id,
+            },
+        )
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    app.include_router(auth.router)
+    app.include_router(scopes.router)
+
+    static_dir = Path(os.getenv("NETSENTINEL_STATIC_DIR", ""))
+    if os.getenv("NETSENTINEL_STATIC_DIR") and static_dir.is_dir():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
+    return app
+
+
+app = create_app()

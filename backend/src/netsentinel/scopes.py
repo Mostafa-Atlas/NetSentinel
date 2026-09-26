@@ -1,0 +1,136 @@
+from ipaddress import IPv4Network, ip_network
+
+from fastapi import APIRouter
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+
+from netsentinel.auth import Csrf, CurrentSession, Db, error
+from netsentinel.models import NetworkScope, utcnow
+
+router = APIRouter(prefix="/api/v1/scopes", tags=["scopes"])
+
+
+def validate_cidr(value: str) -> str:
+    try:
+        network = ip_network(value, strict=True)
+    except ValueError:
+        raise ValueError("Enter a canonical private IPv4 CIDR such as 192.168.1.0/24") from None
+    if (
+        not isinstance(network, IPv4Network)
+        or not network.is_private
+        or network.is_loopback
+        or network.is_link_local
+        or network.is_multicast
+        or network.is_reserved
+    ):
+        raise ValueError("Only private IPv4 LAN ranges are allowed")
+    if (
+        not network.subnet_of(IPv4Network("10.0.0.0/8"))
+        and not network.subnet_of(IPv4Network("172.16.0.0/12"))
+        and not network.subnet_of(IPv4Network("192.168.0.0/16"))
+    ):
+        raise ValueError("Only RFC 1918 private IPv4 ranges are allowed")
+    if network.num_addresses > 256:
+        raise ValueError("A scope may contain no more than 256 addresses")
+    return str(network)
+
+
+class ScopeCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    cidr: str
+    approved: bool
+    max_concurrency: int = Field(default=32, ge=1, le=32)
+    connect_timeout_ms: int = Field(default=1000, ge=100, le=1000)
+    ports: list[int] = Field(default_factory=lambda: [22, 80, 443], min_length=1, max_length=16)
+
+    @field_validator("cidr")
+    @classmethod
+    def valid_cidr(cls, value: str) -> str:
+        return validate_cidr(value)
+
+    @field_validator("ports")
+    @classmethod
+    def valid_ports(cls, value: list[int]) -> list[int]:
+        if any(port < 1 or port > 65535 for port in value) or len(set(value)) != len(value):
+            raise ValueError("Ports must be unique integers from 1 to 65535")
+        return value
+
+
+class ScopeUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    enabled: bool | None = None
+    approved: bool = False
+
+
+class ScopeOut(BaseModel):
+    id: int
+    name: str
+    cidr: str
+    enabled: bool
+    approved_at: str
+    max_concurrency: int
+    connect_timeout_ms: int
+    ports: list[int]
+
+
+def scope_out(scope: NetworkScope) -> ScopeOut:
+    return ScopeOut(
+        id=scope.id,
+        name=scope.name,
+        cidr=scope.cidr,
+        enabled=scope.enabled,
+        approved_at=scope.approved_at.isoformat(),
+        max_concurrency=scope.max_concurrency,
+        connect_timeout_ms=scope.connect_timeout_ms,
+        ports=[int(p) for p in scope.ports.split(",")],
+    )
+
+
+@router.get("")
+def list_scopes(db: Db, _user: CurrentSession) -> list[ScopeOut]:
+    return [
+        scope_out(scope) for scope in db.scalars(select(NetworkScope).order_by(NetworkScope.id))
+    ]
+
+
+@router.post("", status_code=201)
+def create_scope(payload: ScopeCreate, db: Db, _user: CurrentSession, _csrf: Csrf) -> ScopeOut:
+    if not payload.approved:
+        error("approval_required", "Confirm that you are authorized to scan this range")
+    scope = NetworkScope(
+        name=payload.name,
+        cidr=payload.cidr,
+        enabled=True,
+        approved_at=utcnow(),
+        max_concurrency=payload.max_concurrency,
+        connect_timeout_ms=payload.connect_timeout_ms,
+        ports=",".join(str(p) for p in payload.ports),
+    )
+    db.add(scope)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        error("duplicate_scope", "This range is already configured", 409)
+    db.refresh(scope)
+    return scope_out(scope)
+
+
+@router.patch("/{scope_id}")
+def update_scope(
+    scope_id: int, payload: ScopeUpdate, db: Db, _user: CurrentSession, _csrf: Csrf
+) -> ScopeOut:
+    scope = db.get(NetworkScope, scope_id)
+    if scope is None:
+        error("not_found", "Scope not found", 404)
+    if payload.name is not None:
+        scope.name = payload.name
+    if payload.enabled is True and not scope.enabled:
+        if not payload.approved:
+            error("approval_required", "Confirm that you are authorized to scan this range")
+        scope.approved_at = utcnow()
+    if payload.enabled is not None:
+        scope.enabled = payload.enabled
+    db.commit()
+    return scope_out(scope)
