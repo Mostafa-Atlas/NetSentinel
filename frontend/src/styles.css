@@ -377,6 +377,15 @@ form .primary {
 .scope-list small {
   color: var(--muted);
 }
+.scope-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.scan-panel {
+  margin-top: 1.2rem;
+}
 .skip-link {
   position: absolute;
   top: -100px;

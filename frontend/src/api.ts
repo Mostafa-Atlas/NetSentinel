@@ -14,6 +14,22 @@ export type Scope = {
   connect_timeout_ms: number;
   ports: number[];
 };
+export type Scan = {
+  id: number;
+  scope_id: number;
+  type: string;
+  status: "queued" | "running" | "completed" | "failed";
+  started_at: string | null;
+  finished_at: string | null;
+  host_count: number;
+  error_summary: string | null;
+};
+export type Page<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
 
 function csrfToken(): string {
   const entry = document.cookie

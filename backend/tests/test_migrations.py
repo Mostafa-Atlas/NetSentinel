@@ -11,4 +11,14 @@ def test_fresh_migrations(tmp_path: Path) -> None:
     config.set_main_option("sqlalchemy.url", f"sqlite:///{(tmp_path / 'migrated.db').as_posix()}")
     command.upgrade(config, "head")
     tables = set(inspect(create_engine(config.get_main_option("sqlalchemy.url"))).get_table_names())
-    assert {"users", "sessions", "network_scopes", "settings"}.issubset(tables)
+    assert {
+        "users",
+        "sessions",
+        "network_scopes",
+        "settings",
+        "scan_runs",
+        "devices",
+        "device_addresses",
+        "observations",
+        "service_observations",
+    }.issubset(tables)

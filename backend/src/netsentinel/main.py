@@ -1,5 +1,7 @@
+import asyncio
 import os
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -8,18 +10,32 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import sessionmaker
 
-from netsentinel import auth, scopes
+from netsentinel import auth, scans, scopes
 from netsentinel.db import make_engine
+from netsentinel.discovery import DefaultProbeRunner
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scans.recover_interrupted(app)
+    app.state.scan_queue = asyncio.Queue(maxsize=4)
+    worker = asyncio.create_task(scans.scan_worker(app))
+    try:
+        yield
+    finally:
+        worker.cancel()
+        await asyncio.gather(worker, return_exceptions=True)
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
-    app = FastAPI(title="NetSentinel", version="0.1.0")
+    app = FastAPI(title="NetSentinel", version="0.1.0", lifespan=lifespan)
     engine = make_engine(
         database_url or os.getenv("NETSENTINEL_DATABASE_URL") or "sqlite:///./netsentinel.db"
     )
     app.state.engine = engine
     app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
     app.state.login_attempts = {}
+    app.state.prober = DefaultProbeRunner()
 
     @app.middleware("http")
     async def request_id(request: Request, call_next):
@@ -60,6 +76,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
 
     app.include_router(auth.router)
     app.include_router(scopes.router)
+    app.include_router(scans.router)
 
     static_dir = Path(os.getenv("NETSENTINEL_STATIC_DIR", ""))
     if os.getenv("NETSENTINEL_STATIC_DIR") and static_dir.is_dir():

@@ -1,5 +1,5 @@
 import React from "react";
-import { api, type ApiError, type Scope } from "./api";
+import { api, type ApiError, type Page, type Scan, type Scope } from "./api";
 
 type User = { username: string };
 type View = "overview" | "settings";
@@ -110,6 +110,7 @@ function AuthForm({
 
 function ScopeSettings() {
   const [scopes, setScopes] = React.useState<Scope[]>([]);
+  const [latestScan, setLatestScan] = React.useState<Scan | null>(null);
   const [name, setName] = React.useState("Home LAN");
   const [cidr, setCidr] = React.useState("");
   const [approved, setApproved] = React.useState(false);
@@ -122,6 +123,21 @@ function ScopeSettings() {
       .catch((cause) => setError(messageOf(cause)));
   }, []);
   React.useEffect(reload, [reload]);
+  React.useEffect(() => {
+    api<Page<Scan>>("/scans?limit=1")
+      .then((page) => setLatestScan(page.items[0] ?? null))
+      .catch((cause) => setError(messageOf(cause)));
+  }, []);
+  React.useEffect(() => {
+    if (!latestScan || !["queued", "running"].includes(latestScan.status))
+      return;
+    const timer = window.setInterval(() => {
+      api<Scan>(`/scans/${latestScan.id}`)
+        .then(setLatestScan)
+        .catch((cause) => setError(messageOf(cause)));
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [latestScan]);
   async function add(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -157,6 +173,27 @@ function ScopeSettings() {
         body: JSON.stringify({ enabled: !scope.enabled, approved: approval }),
       });
       reload();
+    } catch (cause) {
+      setError(messageOf(cause));
+    }
+  }
+  async function startScan(scope: Scope) {
+    const addresses = 2 ** (32 - Number(scope.cidr.split("/")[1]));
+    if (
+      !window.confirm(
+        `Scan ${scope.cidr}? This may contact up to ${addresses} addresses on ${scope.ports.length} TCP ports with at most ${scope.max_concurrency} concurrent probes.`,
+      )
+    )
+      return;
+    setError("");
+    setNotice("");
+    try {
+      setLatestScan(
+        await api<Scan>("/scans", {
+          method: "POST",
+          body: JSON.stringify({ scope_id: scope.id }),
+        }),
+      );
     } catch (cause) {
       setError(messageOf(cause));
     }
@@ -240,14 +277,38 @@ function ScopeSettings() {
                       concurrent probes
                     </small>
                   </div>
-                  <button className="secondary" onClick={() => toggle(scope)}>
-                    {scope.enabled ? "Pause" : "Enable"}
-                  </button>
+                  <div className="scope-actions">
+                    {scope.enabled && (
+                      <button
+                        className="primary"
+                        onClick={() => startScan(scope)}
+                      >
+                        Run discovery
+                      </button>
+                    )}
+                    <button className="secondary" onClick={() => toggle(scope)}>
+                      {scope.enabled ? "Pause" : "Enable"}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
+      </div>
+      <div className="panel scan-panel">
+        <h2>Latest discovery</h2>
+        {latestScan ? (
+          <p role="status">
+            Run #{latestScan.id}: <strong>{latestScan.status}</strong>
+            {latestScan.status === "completed"
+              ? ` · ${latestScan.host_count} addresses probed`
+              : ""}
+            {latestScan.error_summary ? ` · ${latestScan.error_summary}` : ""}
+          </p>
+        ) : (
+          <p className="empty">No scan has run yet.</p>
+        )}
       </div>
     </section>
   );

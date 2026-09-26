@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from netsentinel.db import Base
@@ -48,3 +48,69 @@ class Setting(Base):
     key: Mapped[str] = mapped_column(String(80), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ScanRun(Base):
+    __tablename__ = "scan_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scope_id: Mapped[int] = mapped_column(ForeignKey("network_scopes.id"), index=True)
+    type: Mapped[str] = mapped_column(String(20), default="manual")
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    host_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_summary: Mapped[str | None] = mapped_column(String(500))
+
+
+class Device(Base):
+    __tablename__ = "devices"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(100))
+    identity_confidence: Mapped[str] = mapped_column(String(20), default="provisional")
+    known_state: Mapped[str] = mapped_column(String(20), default="unknown")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class DeviceAddress(Base):
+    __tablename__ = "device_addresses"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    ip: Mapped[str] = mapped_column(String(45), index=True)
+    mac: Mapped[str | None] = mapped_column(String(17), index=True)
+    hostname: Mapped[str | None] = mapped_column(String(255))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Observation(Base):
+    __tablename__ = "observations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    scan_run_id: Mapped[int] = mapped_column(
+        ForeignKey("scan_runs.id", ondelete="CASCADE"), index=True
+    )
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
+    source: Mapped[str] = mapped_column(String(50))
+    reachable: Mapped[bool | None] = mapped_column(Boolean)
+    latency_ms: Mapped[float | None] = mapped_column(Float)
+    raw_summary: Mapped[str] = mapped_column(String(255))
+
+
+class ServiceObservation(Base):
+    __tablename__ = "service_observations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    scan_run_id: Mapped[int] = mapped_column(
+        ForeignKey("scan_runs.id", ondelete="CASCADE"), index=True
+    )
+    ip: Mapped[str] = mapped_column(String(45))
+    port: Mapped[int] = mapped_column(Integer)
+    protocol: Mapped[str] = mapped_column(String(8), default="tcp")
+    state: Mapped[str] = mapped_column(String(20))
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
