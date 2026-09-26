@@ -63,6 +63,17 @@ def test_bootstrap_auth_and_scope_validation(tmp_path: Path) -> None:
     created = client.post("/api/v1/scopes", json=payload, headers=csrf_headers(client))
     assert created.status_code == 201
     assert created.json()["cidr"] == "192.168.1.0/24"
+    assert (
+        client.patch(
+            "/api/v1/scopes/1", json={"ports": [22, 8080]}, headers=csrf_headers(client)
+        ).status_code
+        == 400
+    )
+    assert client.patch(
+        "/api/v1/scopes/1",
+        json={"ports": [22, 8080], "approved": True},
+        headers=csrf_headers(client),
+    ).json()["ports"] == [22, 8080]
     assert len(client.get("/api/v1/scopes").json()) == 1
     assert (
         client.post("/api/v1/scopes", json=payload, headers=csrf_headers(client)).status_code == 409

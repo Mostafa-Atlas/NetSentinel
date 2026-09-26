@@ -1,6 +1,8 @@
 import React from "react";
 import { api, type ApiError, type Page, type Scan, type Scope } from "./api";
 import { Devices } from "./features/devices/Devices";
+import { MonitoringSettings } from "./features/settings/MonitoringSettings";
+import { ScopePolicy } from "./features/settings/ScopePolicy";
 
 type User = { username: string };
 type View = "overview" | "devices" | "settings";
@@ -112,6 +114,9 @@ function AuthForm({
 function ScopeSettings() {
   const [scopes, setScopes] = React.useState<Scope[]>([]);
   const [latestScan, setLatestScan] = React.useState<Scan | null>(null);
+  const [editingScopeId, setEditingScopeId] = React.useState<number | null>(
+    null,
+  );
   const [name, setName] = React.useState("Home LAN");
   const [cidr, setCidr] = React.useState("");
   const [approved, setApproved] = React.useState(false);
@@ -290,10 +295,32 @@ function ScopeSettings() {
                     <button className="secondary" onClick={() => toggle(scope)}>
                       {scope.enabled ? "Pause" : "Enable"}
                     </button>
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        setEditingScopeId(
+                          editingScopeId === scope.id ? null : scope.id,
+                        )
+                      }
+                    >
+                      {editingScopeId === scope.id
+                        ? "Close policy"
+                        : "Edit policy"}
+                    </button>
                   </div>
                 </li>
               ))}
             </ul>
+          )}
+          {scopes.find((scope) => scope.id === editingScopeId) && (
+            <ScopePolicy
+              scope={scopes.find((scope) => scope.id === editingScopeId)!}
+              onSaved={() => {
+                reload();
+                setEditingScopeId(null);
+                setNotice("Probe policy saved.");
+              }}
+            />
           )}
         </div>
       </div>
@@ -311,6 +338,7 @@ function ScopeSettings() {
           <p className="empty">No scan has run yet.</p>
         )}
       </div>
+      <MonitoringSettings />
     </section>
   );
 }

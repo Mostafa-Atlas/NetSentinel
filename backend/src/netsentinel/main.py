@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import sessionmaker
 
-from netsentinel import auth, inventory, scans, scopes
+from netsentinel import auth, inventory, monitoring, scans, scopes
 from netsentinel.db import make_engine
 from netsentinel.discovery import DefaultProbeRunner
 
@@ -20,11 +20,13 @@ async def lifespan(app: FastAPI):
     scans.recover_interrupted(app)
     app.state.scan_queue = asyncio.Queue(maxsize=4)
     worker = asyncio.create_task(scans.scan_worker(app))
+    scheduler = asyncio.create_task(monitoring.scheduler_loop(app))
     try:
         yield
     finally:
         worker.cancel()
-        await asyncio.gather(worker, return_exceptions=True)
+        scheduler.cancel()
+        await asyncio.gather(worker, scheduler, return_exceptions=True)
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
@@ -78,6 +80,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(scopes.router)
     app.include_router(scans.router)
     app.include_router(inventory.router)
+    app.include_router(monitoring.router)
 
     static_dir = Path(os.getenv("NETSENTINEL_STATIC_DIR", ""))
     if os.getenv("NETSENTINEL_STATIC_DIR") and static_dir.is_dir():

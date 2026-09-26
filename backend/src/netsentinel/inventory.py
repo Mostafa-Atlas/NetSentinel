@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session as DBSession
 from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.discovery import ProbeResult
 from netsentinel.models import Device, DeviceAddress, Observation, ServiceObservation, utcnow
+from netsentinel.monitoring import read_settings
 from netsentinel.timeutil import iso_utc
 
 router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
@@ -101,6 +102,20 @@ def device_out(db: DBSession, device: Device) -> dict:
         .where(Observation.device_id == device.id)
         .order_by(Observation.observed_at.desc(), Observation.id.desc())
     )
+    threshold = read_settings(db).offline_threshold
+    recent = db.scalars(
+        select(Observation.reachable)
+        .where(Observation.device_id == device.id)
+        .order_by(Observation.observed_at.desc(), Observation.id.desc())
+        .limit(threshold)
+    ).all()
+    status = (
+        "online"
+        if latest and latest.reachable is True
+        else "offline"
+        if len(recent) >= threshold and all(value is False for value in recent)
+        else "unconfirmed"
+    )
     return {
         "id": device.id,
         "display_name": device.display_name,
@@ -109,11 +124,7 @@ def device_out(db: DBSession, device: Device) -> dict:
         "notes": device.notes,
         "first_seen_at": iso_utc(device.first_seen_at),
         "last_seen_at": iso_utc(device.last_seen_at),
-        "status": "online"
-        if latest and latest.reachable is True
-        else "offline"
-        if latest and latest.reachable is False
-        else "unconfirmed",
+        "status": status,
         "last_observed_at": iso_utc(latest.observed_at) if latest else None,
         "addresses": [
             {

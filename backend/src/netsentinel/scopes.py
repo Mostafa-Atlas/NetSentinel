@@ -62,6 +62,18 @@ class ScopeUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     enabled: bool | None = None
     approved: bool = False
+    max_concurrency: int | None = Field(default=None, ge=1, le=32)
+    connect_timeout_ms: int | None = Field(default=None, ge=100, le=1000)
+    ports: list[int] | None = Field(default=None, min_length=1, max_length=16)
+
+    @field_validator("ports")
+    @classmethod
+    def valid_ports(cls, value: list[int] | None) -> list[int] | None:
+        if value is not None and (
+            any(port < 1 or port > 65535 for port in value) or len(set(value)) != len(value)
+        ):
+            raise ValueError("Ports must be unique integers from 1 to 65535")
+        return value
 
 
 class ScopeOut(BaseModel):
@@ -131,6 +143,27 @@ def update_scope(
         if not payload.approved:
             error("approval_required", "Confirm that you are authorized to scan this range")
         scope.approved_at = utcnow()
+    policy_changed = (
+        (
+            payload.ports is not None
+            and payload.ports != [int(port) for port in scope.ports.split(",")]
+        )
+        or (
+            payload.max_concurrency is not None and payload.max_concurrency != scope.max_concurrency
+        )
+        or (
+            payload.connect_timeout_ms is not None
+            and payload.connect_timeout_ms != scope.connect_timeout_ms
+        )
+    )
+    if policy_changed and not payload.approved:
+        error("approval_required", "Confirm the updated probe policy for this range")
+    if payload.ports is not None:
+        scope.ports = ",".join(str(port) for port in payload.ports)
+    if payload.max_concurrency is not None:
+        scope.max_concurrency = payload.max_concurrency
+    if payload.connect_timeout_ms is not None:
+        scope.connect_timeout_ms = payload.connect_timeout_ms
     if payload.enabled is not None:
         scope.enabled = payload.enabled
     db.commit()

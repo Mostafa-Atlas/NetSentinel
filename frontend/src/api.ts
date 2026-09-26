@@ -67,6 +67,12 @@ export type ServiceObservation = {
   state: "reachable" | "unreachable" | "unknown";
   observed_at: string;
 };
+export type MonitoringSettings = {
+  schedule_enabled: boolean;
+  interval_minutes: number;
+  offline_threshold: number;
+  retention_days: number;
+};
 
 function csrfToken(): string {
   const entry = document.cookie

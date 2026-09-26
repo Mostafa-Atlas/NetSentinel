@@ -11,6 +11,7 @@ from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.discovery import ProbeResult
 from netsentinel.inventory import reconcile_device
 from netsentinel.models import (
+    DeviceAddress,
     NetworkScope,
     Observation,
     ScanRun,
@@ -64,21 +65,25 @@ def recover_interrupted(app) -> None:
         db.commit()
 
 
-def persist_result(db, run: ScanRun, result: ProbeResult) -> bool:
+def persist_result(db, run: ScanRun, result: ProbeResult) -> int | None:
     """Store immutable observations for a conservatively reconciled device."""
     if result.reachable is not True and not result.mac:
-        return False
+        return None
     now = utcnow()
     device = reconcile_device(db, result, now)
+    prior = db.scalar(select(Observation.id).where(Observation.device_id == device.id).limit(1))
+    reachable = result.reachable if result.reachable is True else False if prior else None
+    response_text = "response" if reachable else "no probe response"
+    summary = f"{result.source}; {len(result.services)} TCP ports; {response_text}"
     db.add(
         Observation(
             device_id=device.id,
             scan_run_id=run.id,
             observed_at=now,
             source=result.source,
-            reachable=result.reachable,
+            reachable=reachable,
             latency_ms=result.latency_ms,
-            raw_summary=f"{result.source} observation; {len(result.services)} TCP ports tested",
+            raw_summary=summary,
         )
     )
     for port, state in result.services.items():
@@ -93,7 +98,7 @@ def persist_result(db, run: ScanRun, result: ProbeResult) -> bool:
                 observed_at=now,
             )
         )
-    return True
+    return device.id
 
 
 async def execute_scan(app, run_id: int) -> None:
@@ -126,8 +131,47 @@ async def execute_scan(app, run_id: int) -> None:
             run = db.get(ScanRun, run_id)
             if run is None:
                 return
+            observed_ids: set[int] = set()
             for result in results:
-                persist_result(db, run, result)
+                device_id = persist_result(db, run, result)
+                if device_id is not None:
+                    observed_ids.add(device_id)
+            results_by_ip = {result.ip: result for result in results}
+            missed_ids: set[int] = set()
+            for address in db.scalars(select(DeviceAddress)):
+                result = results_by_ip.get(address.ip)
+                if (
+                    result is None
+                    or result.reachable is True
+                    or address.device_id in observed_ids
+                    or address.device_id in missed_ids
+                ):
+                    continue
+                missed_ids.add(address.device_id)
+                now = utcnow()
+                db.add(
+                    Observation(
+                        device_id=address.device_id,
+                        scan_run_id=run.id,
+                        observed_at=now,
+                        source="bounded_probe",
+                        reachable=False,
+                        latency_ms=None,
+                        raw_summary="No ICMP or configured TCP port answered",
+                    )
+                )
+                for port in [int(value) for value in scope.ports.split(",")]:
+                    db.add(
+                        ServiceObservation(
+                            device_id=address.device_id,
+                            scan_run_id=run.id,
+                            ip=address.ip,
+                            port=port,
+                            protocol="tcp",
+                            state="unknown",
+                            observed_at=now,
+                        )
+                    )
             run.host_count = len(results)
             run.status = "completed"
             run.finished_at = utcnow()
