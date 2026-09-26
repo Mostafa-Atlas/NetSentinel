@@ -4,10 +4,20 @@ import { MonitoringSettings } from "./features/settings/MonitoringSettings";
 import { ScopePolicy } from "./features/settings/ScopePolicy";
 
 type User = { username: string };
-type View = "overview" | "devices" | "settings";
+type View = "overview" | "devices" | "map" | "settings";
 const Devices = React.lazy(() =>
   import("./features/devices/Devices").then((module) => ({
     default: module.Devices,
+  })),
+);
+const Overview = React.lazy(() =>
+  import("./features/overview/Overview").then((module) => ({
+    default: module.Overview,
+  })),
+);
+const NetworkMap = React.lazy(() =>
+  import("./features/map/NetworkMap").then((module) => ({
+    default: module.NetworkMap,
   })),
 );
 
@@ -445,6 +455,12 @@ export function App() {
             Devices
           </button>
           <button
+            className={view === "map" ? "nav-item active" : "nav-item"}
+            onClick={() => setView("map")}
+          >
+            Network map
+          </button>
+          <button
             className={view === "settings" ? "nav-item active" : "nav-item"}
             onClick={() => setView("settings")}
           >
@@ -478,29 +494,14 @@ export function App() {
             <React.Suspense fallback={<p role="status">Loading inventory…</p>}>
               <Devices />
             </React.Suspense>
+          ) : view === "map" ? (
+            <React.Suspense fallback={<p role="status">Loading map…</p>}>
+              <NetworkMap onConfigure={() => setView("settings")} />
+            </React.Suspense>
           ) : (
-            <section>
-              <div className="page-heading">
-                <p className="eyebrow">OVERVIEW</p>
-                <h1>Your network, in view.</h1>
-                <p>
-                  NetSentinel will show verified observations and changes here
-                  after discovery.
-                </p>
-              </div>
-              <div className="panel empty-panel">
-                <div className="empty-icon">◎</div>
-                <h2>Ready to discover</h2>
-                <p>
-                  Approve a private network range to start building your
-                  inventory. No devices are shown until they are actually
-                  observed.
-                </p>
-                <button className="primary" onClick={() => setView("settings")}>
-                  Configure network scope
-                </button>
-              </div>
-            </section>
+            <React.Suspense fallback={<p role="status">Loading overview…</p>}>
+              <Overview onNavigate={(next) => setView(next)} />
+            </React.Suspense>
           )}
         </main>
       </div>

@@ -18,9 +18,20 @@ test("setup leads to approved-scope form without showing fake devices", async ()
             ? { needs_setup: true }
             : url.endsWith("bootstrap")
               ? { username: "owner" }
-              : url.includes("/scans")
-                ? { items: [], total: 0, limit: 1, offset: 0 }
-                : [],
+              : url.endsWith("/overview")
+                ? {
+                    device_count: 0,
+                    online_count: 0,
+                    review_count: 0,
+                    offline_count: 0,
+                    active_alert_count: 0,
+                    updated_at: null,
+                    latest_scan: null,
+                    recent_scans: [],
+                  }
+                : url.includes("/scans")
+                  ? { items: [], total: 0, limit: 1, offset: 0 }
+                  : [],
     }),
   );
   vi.stubGlobal("fetch", fetchMock);
@@ -64,11 +75,22 @@ test("discovery requires a visible confirmation before queuing", async () => {
               ? { needs_setup: false }
               : url.endsWith("/auth/me")
                 ? { username: "owner" }
-                : url.endsWith("/scopes")
-                  ? [scope]
-                  : url.includes("/scans") && options?.method === "POST"
-                    ? { id: 1, scope_id: 1, status: "queued", host_count: 0 }
-                    : { items: [], total: 0, limit: 1, offset: 0 },
+                : url.endsWith("/overview")
+                  ? {
+                      device_count: 0,
+                      online_count: 0,
+                      review_count: 0,
+                      offline_count: 0,
+                      active_alert_count: 0,
+                      updated_at: null,
+                      latest_scan: null,
+                      recent_scans: [],
+                    }
+                  : url.endsWith("/scopes")
+                    ? [scope]
+                    : url.includes("/scans") && options?.method === "POST"
+                      ? { id: 1, scope_id: 1, status: "queued", host_count: 0 }
+                      : { items: [], total: 0, limit: 1, offset: 0 },
       }),
     );
   vi.stubGlobal("fetch", fetchMock);

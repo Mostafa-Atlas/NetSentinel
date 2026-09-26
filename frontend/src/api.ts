@@ -73,6 +73,38 @@ export type MonitoringSettings = {
   offline_threshold: number;
   retention_days: number;
 };
+export type Overview = {
+  device_count: number;
+  online_count: number;
+  review_count: number;
+  offline_count: number;
+  active_alert_count: number;
+  updated_at: string | null;
+  latest_scan: Scan | null;
+  recent_scans: Scan[];
+};
+export type TopologyNode = {
+  id: string;
+  kind: "subnet" | "device";
+  label: string;
+  status: string;
+  cidr?: string;
+  device_id?: number;
+  identity_confidence?: string;
+  last_observed_at: string | null;
+  addresses?: string[];
+};
+export type TopologyLink = {
+  source: string;
+  target: string;
+  kind: "inferred";
+  provenance: string;
+};
+export type Topology = {
+  nodes: TopologyNode[];
+  links: TopologyLink[];
+  legend: { inferred: string };
+};
 
 function csrfToken(): string {
   const entry = document.cookie

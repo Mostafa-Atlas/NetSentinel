@@ -557,6 +557,140 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+.loading-inline {
+  padding: 2rem;
+  color: var(--muted);
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.4rem;
+  display: grid;
+  gap: 0.2rem;
+}
+.metric-card span {
+  color: #bbcede;
+  font-size: 0.86rem;
+}
+.metric-card strong {
+  font-size: 2.2rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.metric-card small {
+  color: var(--muted);
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: #bed1df;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.legend-line {
+  display: inline-block;
+  width: 38px;
+  border-top: 2px dashed #77a5bf;
+}
+.legend-note {
+  color: var(--muted);
+}
+.map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 1.2rem;
+}
+.map-panel {
+  min-height: 500px;
+  padding: 0.4rem;
+}
+.map-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 490px;
+}
+.map-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 350px;
+  overflow: auto;
+}
+.map-list li {
+  border-top: 1px solid var(--border);
+}
+.map-device {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #e7eef7;
+  text-align: left;
+  padding: 0.7rem 0.4rem;
+  display: grid;
+  gap: 0.15rem;
+}
+.map-device span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.map-device.selected,
+.map-device:hover {
+  background: #17344a;
+}
+.map-detail {
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  overflow-wrap: anywhere;
+}
+.map-detail p {
+  margin-bottom: 0.5rem;
+}
+@media (max-width: 1050px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .overview-grid,
+  .map-layout {
+    grid-template-columns: 1fr;
+  }
+  .map-panel {
+    min-height: 380px;
+  }
+  .map-canvas {
+    min-height: 370px;
+  }
+}
+@media (max-width: 550px) {
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .metric-card {
+    padding: 1rem;
+  }
+  .metric-card strong {
+    font-size: 1.7rem;
+  }
+}
 .skip-link {
   position: absolute;
   top: -100px;

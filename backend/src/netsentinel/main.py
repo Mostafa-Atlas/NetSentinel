@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import sessionmaker
 
-from netsentinel import auth, inventory, monitoring, scans, scopes
+from netsentinel import auth, inventory, monitoring, scans, scopes, views
 from netsentinel.db import make_engine
 from netsentinel.discovery import DefaultProbeRunner
 
@@ -81,6 +81,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(scans.router)
     app.include_router(inventory.router)
     app.include_router(monitoring.router)
+    app.include_router(views.router)
 
     static_dir = Path(os.getenv("NETSENTINEL_STATIC_DIR", ""))
     if os.getenv("NETSENTINEL_STATIC_DIR") and static_dir.is_dir():
