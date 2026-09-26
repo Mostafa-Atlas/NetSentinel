@@ -1,11 +1,15 @@
 import React from "react";
 import { api, type ApiError, type Page, type Scan, type Scope } from "./api";
-import { Devices } from "./features/devices/Devices";
 import { MonitoringSettings } from "./features/settings/MonitoringSettings";
 import { ScopePolicy } from "./features/settings/ScopePolicy";
 
 type User = { username: string };
 type View = "overview" | "devices" | "settings";
+const Devices = React.lazy(() =>
+  import("./features/devices/Devices").then((module) => ({
+    default: module.Devices,
+  })),
+);
 
 function messageOf(error: unknown): string {
   return (error as ApiError)?.message || "The request failed. Try again.";
@@ -471,7 +475,9 @@ export function App() {
           {view === "settings" ? (
             <ScopeSettings />
           ) : view === "devices" ? (
-            <Devices />
+            <React.Suspense fallback={<p role="status">Loading inventory…</p>}>
+              <Devices />
+            </React.Suspense>
           ) : (
             <section>
               <div className="page-heading">

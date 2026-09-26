@@ -1,5 +1,14 @@
 import React from "react";
 import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   api,
   type ApiError,
   type Device,
@@ -95,6 +104,17 @@ export function Devices() {
       setSaving(false);
     }
   }
+
+  const latencyPoints = [...observations]
+    .reverse()
+    .filter((row) => row.latency_ms !== null)
+    .map((row) => ({
+      time: new Date(row.observed_at).toLocaleTimeString(),
+      latency: row.latency_ms,
+    }));
+  const missedCount = observations.filter(
+    (row) => row.reachable === false,
+  ).length;
 
   return (
     <section>
@@ -272,6 +292,64 @@ export function Devices() {
               </ul>
             </section>
           </div>
+          <section className="history-section">
+            <h3>Reachability history</h3>
+            <p>
+              {observations.length} recent observations · {missedCount} without
+              a response. Times are shown in your local timezone.
+            </p>
+            {latencyPoints.length >= 2 ? (
+              <>
+                <div
+                  className="latency-chart"
+                  role="img"
+                  aria-label={`Latency chart with ${latencyPoints.length} response samples in milliseconds`}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={latencyPoints}
+                      margin={{ top: 8, right: 18, left: 0, bottom: 8 }}
+                    >
+                      <CartesianGrid stroke="#294157" strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="time"
+                        stroke="#9db1c3"
+                        tick={{ fontSize: 11 }}
+                      />
+                      <YAxis
+                        stroke="#9db1c3"
+                        tick={{ fontSize: 11 }}
+                        unit="ms"
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#102235",
+                          border: "1px solid #365268",
+                          borderRadius: 8,
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="latency"
+                        stroke="#66cce9"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="helper">
+                  Latest response:{" "}
+                  {latencyPoints[latencyPoints.length - 1].latency} ms.
+                </p>
+              </>
+            ) : (
+              <p className="empty">
+                More responding scans are needed for a latency chart.
+              </p>
+            )}
+          </section>
           <div className="split-grid evidence-grid">
             <section>
               <h3>Reachability evidence</h3>

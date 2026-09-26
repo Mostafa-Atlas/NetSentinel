@@ -89,3 +89,26 @@ Commits and push status: working checkpoint `268beb5` pushed to `origin/main`; f
 
 ### Next
 - P5 — scheduled monitoring, reachability history, and service change detection.
+
+## Period P5 — Monitoring
+Status: complete
+Human work time: not recorded
+Commits and push status: working checkpoint `e7102a6` pushed to `origin/main`; final P5 commit pending.
+
+### Delivered
+- Opt-in single-instance scheduler with a 15-minute minimum interval and no duplicate queued job after restart.
+- Safe per-scope TCP port/concurrency/timeout policy requiring explicit approval on changes.
+- No-response observations, configurable consecutive-failure offline status, latency history chart with text summary, and service-change baseline comparison.
+
+### Checks
+- Backend format, lint, mypy, pytest — pass (15 tests).
+- Frontend format, lint, tests, typechecked build — pass (5 tests).
+- No live LAN scan was performed. The in-app browser helper still cannot start in this sandbox; browser visual verification remains unavailable.
+
+### Decisions and limitations
+- Scheduling is disabled by default. The owner enables it only after approving a scope.
+- `retention_days` is stored but enforcement is scheduled for P7; the UI does not present it yet.
+- The first observed service state is a baseline and does not by itself imply a newly opened service.
+
+### Next
+- P6 — inferred network map and overview dashboard.

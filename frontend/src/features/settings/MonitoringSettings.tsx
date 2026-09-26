@@ -103,22 +103,6 @@ export function MonitoringSettings() {
                   }
                 />
               </label>
-              <label htmlFor="retention-days">
-                History retention (days)
-                <input
-                  id="retention-days"
-                  type="number"
-                  min={7}
-                  max={365}
-                  value={settings.retention_days}
-                  onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      retention_days: Number(event.target.value),
-                    })
-                  }
-                />
-              </label>
             </div>
             {error && (
               <p className="error" role="alert">
