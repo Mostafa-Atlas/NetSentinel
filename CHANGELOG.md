@@ -8,3 +8,4 @@
 - P4: Added conservative device identity reconciliation, address history, inventory search and filters, evidence detail, and editable owner labels and notes.
 - P5: Added opt-in scheduled scans, safe per-scope TCP probe policy, consecutive missed-scan status, latency history, and service-change baseline logic.
 - P6: Added an evidence-timestamped overview, interactive subnet map, clearly inferred links, and a keyboard-accessible map list.
+- P7: Added evidence-backed new-device, newly reachable-port, and offline alerts with deduplication, acknowledgment, resolution, and an owner event timeline. Added daily probe-evidence retention, a controlled browser end-to-end test, and install/backup/restore instructions.
