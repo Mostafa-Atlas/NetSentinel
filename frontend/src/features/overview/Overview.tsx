@@ -8,7 +8,9 @@ function localTime(value: string | null): string {
 export function Overview({
   onNavigate,
 }: {
-  onNavigate: (view: "devices" | "map" | "settings") => void;
+  onNavigate: (
+    view: "devices" | "map" | "alerts" | "timeline" | "settings",
+  ) => void;
 }) {
   const [data, setData] = React.useState<OverviewData | null>(null);
   const [error, setError] = React.useState("");
@@ -64,6 +66,12 @@ export function Overview({
           <span>Active alerts</span>
           <strong>{data.active_alert_count}</strong>
           <small>Updated {localTime(data.updated_at)}</small>
+          <button
+            className="text-button metric-link"
+            onClick={() => onNavigate("alerts")}
+          >
+            Review alerts
+          </button>
         </article>
       </div>
       {data.device_count === 0 ? (
@@ -119,6 +127,32 @@ export function Overview({
           </div>
         </div>
       )}
+      <div className="panel recent-events">
+        <div className="detail-heading">
+          <div>
+            <h2>Recent changes</h2>
+            <p>Latest timestamped activity from scans and owner actions.</p>
+          </div>
+          <button className="secondary" onClick={() => onNavigate("timeline")}>
+            View timeline
+          </button>
+        </div>
+        {data.recent_events.length ? (
+          <ul className="evidence-list">
+            {data.recent_events.map((event) => (
+              <li key={event.id}>
+                <strong>{event.summary}</strong>
+                <span>
+                  {event.event_type.replaceAll("_", " ")} · {event.actor}
+                </span>
+                <small>{localTime(event.occurred_at)}</small>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty">No changes recorded yet.</p>
+        )}
+      </div>
     </section>
   );
 }

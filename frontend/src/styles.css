@@ -665,6 +665,56 @@ textarea {
 .map-detail p {
   margin-bottom: 0.5rem;
 }
+.alert-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.alert-list li {
+  border-top: 1px solid var(--border);
+  padding: 1.3rem 0;
+}
+.alert-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+}
+.alert-list p {
+  margin: 0.6rem 0;
+}
+.alert-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+.status-tag.active {
+  color: #f4d697;
+  border-color: #806731;
+}
+.status-tag.acknowledged {
+  color: #b3daf2;
+  border-color: #366a8b;
+}
+.status-tag.resolved {
+  color: #a8eed5;
+  border-color: #247c68;
+}
+.pager,
+.recent-events {
+  margin-top: 1.2rem;
+}
+.timeline-list {
+  padding-left: 0;
+}
+.timeline-link,
+.metric-link {
+  justify-self: start;
+  padding-left: 0;
+}
 @media (max-width: 1050px) {
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -737,6 +787,7 @@ textarea {
   .sidebar nav {
     display: flex;
     gap: 0.4rem;
+    flex-wrap: wrap;
   }
   .nav-item {
     width: auto;

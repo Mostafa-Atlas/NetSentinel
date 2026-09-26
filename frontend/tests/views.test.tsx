@@ -26,6 +26,7 @@ test("overview and keyboard map list show observed data and inferred provenance"
     updated_at: "2026-09-27T00:00:00Z",
     latest_scan: null,
     recent_scans: [],
+    recent_events: [],
   };
   const topology = {
     nodes: [
@@ -111,6 +112,7 @@ test("empty map explains how to populate it", async () => {
                       updated_at: null,
                       latest_scan: null,
                       recent_scans: [],
+                      recent_events: [],
                     }
                   : url.endsWith("/scopes")
                     ? []

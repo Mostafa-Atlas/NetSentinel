@@ -59,14 +59,28 @@ test("inventory opens evidence and saves an owner label", async () => {
                       }
                     : url.includes("/services?")
                       ? { items: [], total: 0 }
-                      : url.endsWith("/devices/1") &&
-                          options?.method === "PATCH"
+                      : url.includes("/events?device_id=1")
                         ? {
-                            ...device,
-                            display_name: "Desk",
-                            known_state: "known",
+                            items: [
+                              {
+                                id: 5,
+                                summary: "New device observed",
+                                event_type: "alert_triggered",
+                                actor: "system",
+                                occurred_at: "2026-09-27T00:00:00Z",
+                                evidence_ref: "alert:1",
+                              },
+                            ],
+                            total: 1,
                           }
-                        : device,
+                        : url.endsWith("/devices/1") &&
+                            options?.method === "PATCH"
+                          ? {
+                              ...device,
+                              display_name: "Desk",
+                              known_state: "known",
+                            }
+                          : device,
       }),
     );
   vi.stubGlobal("fetch", fetchMock);
@@ -77,6 +91,16 @@ test("inventory opens evidence and saves an owner label", async () => {
     await screen.findByText("Observed MAC aa:bb:cc:dd:ee:ff"),
   ).toBeTruthy();
   expect(screen.getByText("Reachability evidence")).toBeTruthy();
+  expect(screen.getByText("Device events")).toBeTruthy();
+  expect(screen.getByText("New device observed")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Alerts"), {
+    target: { value: "open" },
+  });
+  expect(
+    fetchMock.mock.calls.some(([url]) =>
+      String(url).includes("alert_filter=open"),
+    ),
+  ).toBe(true);
   fireEvent.change(screen.getByLabelText("Display name"), {
     target: { value: "Desk" },
   });

@@ -73,6 +73,30 @@ export type MonitoringSettings = {
   offline_threshold: number;
   retention_days: number;
 };
+export type Alert = {
+  id: number;
+  device_id: number | null;
+  device_name: string | null;
+  rule_key: string;
+  severity: string;
+  status: "active" | "acknowledged" | "resolved";
+  summary: string;
+  details: string;
+  evidence_ref: string;
+  created_at: string;
+  last_seen_at: string;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+};
+export type TimelineEvent = {
+  id: number;
+  device_id: number | null;
+  event_type: string;
+  occurred_at: string;
+  actor: string;
+  summary: string;
+  evidence_ref: string | null;
+};
 export type Overview = {
   device_count: number;
   online_count: number;
@@ -82,6 +106,10 @@ export type Overview = {
   updated_at: string | null;
   latest_scan: Scan | null;
   recent_scans: Scan[];
+  recent_events: Pick<
+    TimelineEvent,
+    "id" | "summary" | "event_type" | "occurred_at" | "actor"
+  >[];
 };
 export type TopologyNode = {
   id: string;

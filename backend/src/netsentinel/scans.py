@@ -7,10 +7,12 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
 
+from netsentinel.alerts import add_event, resolve_rule, upsert_alert
 from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.discovery import ProbeResult
 from netsentinel.inventory import reconcile_device
 from netsentinel.models import (
+    Device,
     DeviceAddress,
     NetworkScope,
     Observation,
@@ -18,6 +20,7 @@ from netsentinel.models import (
     ServiceObservation,
     utcnow,
 )
+from netsentinel.monitoring import read_settings, service_became_reachable
 from netsentinel.timeutil import iso_utc
 
 router = APIRouter(prefix="/api/v1/scans", tags=["scans"])
@@ -53,6 +56,9 @@ def scan_out(scan: ScanRun) -> ScanOut:
 
 def recover_interrupted(app) -> None:
     with app.state.session_factory() as db:
+        interrupted = db.scalars(
+            select(ScanRun).where(ScanRun.status.in_(["queued", "running"]))
+        ).all()
         db.execute(
             update(ScanRun)
             .where(ScanRun.status.in_(["queued", "running"]))
@@ -62,7 +68,41 @@ def recover_interrupted(app) -> None:
                 error_summary="Interrupted by application restart",
             )
         )
+        for run in interrupted:
+            add_event(
+                db,
+                "scan_failed",
+                f"Scan #{run.id} interrupted by restart",
+                evidence_ref=f"scan:{run.id}",
+            )
         db.commit()
+
+
+def evaluate_reachability(db, observation: Observation) -> None:
+    if observation.reachable is True:
+        resolve_rule(db, observation.device_id, "offline")
+    elif observation.reachable is False:
+        threshold = read_settings(db).offline_threshold
+        recent = db.scalars(
+            select(Observation.reachable)
+            .where(Observation.device_id == observation.device_id)
+            .order_by(Observation.observed_at.desc(), Observation.id.desc())
+            .limit(threshold)
+        ).all()
+        if len(recent) >= threshold and all(value is False for value in recent):
+            device = db.get(Device, observation.device_id)
+            name = device.display_name if device else f"Device #{observation.device_id}"
+            upsert_alert(
+                db,
+                device_id=observation.device_id,
+                rule_key="offline",
+                summary=f"No response from {name}",
+                details=(
+                    f"No ICMP or configured TCP port responded in {threshold} consecutive scans. "
+                    "Firewalls or client isolation can also cause this result."
+                ),
+                evidence_ref=f"observation:{observation.id}",
+            )
 
 
 def persist_result(db, run: ScanRun, result: ProbeResult) -> int | None:
@@ -72,32 +112,68 @@ def persist_result(db, run: ScanRun, result: ProbeResult) -> int | None:
     now = utcnow()
     device = reconcile_device(db, result, now)
     prior = db.scalar(select(Observation.id).where(Observation.device_id == device.id).limit(1))
+    prior_response = db.scalar(
+        select(Observation.id)
+        .where(Observation.device_id == device.id, Observation.reachable.is_(True))
+        .limit(1)
+    )
     reachable = result.reachable if result.reachable is True else False if prior else None
     response_text = "response" if reachable else "no probe response"
     summary = f"{result.source}; {len(result.services)} TCP ports; {response_text}"
-    db.add(
-        Observation(
+    observation = Observation(
+        device_id=device.id,
+        scan_run_id=run.id,
+        observed_at=now,
+        source=result.source,
+        reachable=reachable,
+        latency_ms=result.latency_ms,
+        raw_summary=summary,
+    )
+    db.add(observation)
+    db.flush()
+    if prior_response is None and reachable is True:
+        upsert_alert(
+            db,
+            device_id=device.id,
+            rule_key="new_device",
+            summary=f"New device observed: {device.display_name}",
+            details=(
+                f"{result.ip} responded during scan #{run.id} via {result.source}. "
+                f"Identity is {device.identity_confidence}; review before marking it familiar."
+            ),
+            evidence_ref=f"observation:{observation.id}",
+        )
+    evaluate_reachability(db, observation)
+    for port, state in result.services.items():
+        previous = db.scalar(
+            select(ServiceObservation.state)
+            .where(ServiceObservation.device_id == device.id, ServiceObservation.port == port)
+            .order_by(ServiceObservation.observed_at.desc(), ServiceObservation.id.desc())
+            .limit(1)
+        )
+        service = ServiceObservation(
             device_id=device.id,
             scan_run_id=run.id,
+            ip=result.ip,
+            port=port,
+            protocol="tcp",
+            state=state,
             observed_at=now,
-            source=result.source,
-            reachable=reachable,
-            latency_ms=result.latency_ms,
-            raw_summary=summary,
         )
-    )
-    for port, state in result.services.items():
-        db.add(
-            ServiceObservation(
+        db.add(service)
+        db.flush()
+        if service_became_reachable(previous, state):
+            upsert_alert(
+                db,
                 device_id=device.id,
-                scan_run_id=run.id,
-                ip=result.ip,
-                port=port,
-                protocol="tcp",
-                state=state,
-                observed_at=now,
+                rule_key=f"new_port:tcp:{port}",
+                summary=f"TCP {port} became reachable on {device.display_name}",
+                details=(
+                    f"A bounded TCP connect succeeded at {result.ip}:{port} during scan #{run.id}. "
+                    "This does not identify an application or prove a vulnerability."
+                ),
+                evidence_ref=f"service:{service.id}",
             )
-        )
     return device.id
 
 
@@ -111,6 +187,12 @@ async def execute_scan(app, run_id: int) -> None:
             run.status = "failed"
             run.error_summary = "Approved scope is no longer enabled"
             run.finished_at = utcnow()
+            add_event(
+                db,
+                "scan_failed",
+                f"Scan #{run.id} stopped: scope unavailable",
+                evidence_ref=f"scan:{run.id}",
+            )
             db.commit()
             return
         network = IPv4Network(scope.cidr, strict=True)
@@ -118,10 +200,22 @@ async def execute_scan(app, run_id: int) -> None:
             run.status = "failed"
             run.error_summary = "Scope exceeds safety cap"
             run.finished_at = utcnow()
+            add_event(
+                db,
+                "scan_failed",
+                f"Scan #{run.id} stopped: safety cap",
+                evidence_ref=f"scan:{run.id}",
+            )
             db.commit()
             return
         run.status = "running"
         run.started_at = utcnow()
+        add_event(
+            db,
+            "scan_started",
+            f"Scan #{run.id} started for {scope.cidr}",
+            evidence_ref=f"scan:{run.id}",
+        )
         db.commit()
     try:
         results = await app.state.prober.scan(scope)
@@ -149,17 +243,18 @@ async def execute_scan(app, run_id: int) -> None:
                     continue
                 missed_ids.add(address.device_id)
                 now = utcnow()
-                db.add(
-                    Observation(
-                        device_id=address.device_id,
-                        scan_run_id=run.id,
-                        observed_at=now,
-                        source="bounded_probe",
-                        reachable=False,
-                        latency_ms=None,
-                        raw_summary="No ICMP or configured TCP port answered",
-                    )
+                observation = Observation(
+                    device_id=address.device_id,
+                    scan_run_id=run.id,
+                    observed_at=now,
+                    source="bounded_probe",
+                    reachable=False,
+                    latency_ms=None,
+                    raw_summary="No ICMP or configured TCP port answered",
                 )
+                db.add(observation)
+                db.flush()
+                evaluate_reachability(db, observation)
                 for port in [int(value) for value in scope.ports.split(",")]:
                     db.add(
                         ServiceObservation(
@@ -175,6 +270,12 @@ async def execute_scan(app, run_id: int) -> None:
             run.host_count = len(results)
             run.status = "completed"
             run.finished_at = utcnow()
+            add_event(
+                db,
+                "scan_completed",
+                f"Scan #{run.id} completed: {len(results)} addresses probed",
+                evidence_ref=f"scan:{run.id}",
+            )
             db.commit()
     except Exception as exc:
         with app.state.session_factory() as db:
@@ -183,6 +284,9 @@ async def execute_scan(app, run_id: int) -> None:
                 run.status = "failed"
                 run.error_summary = str(exc)[:500]
                 run.finished_at = utcnow()
+                add_event(
+                    db, "scan_failed", f"Scan #{run.id} failed", evidence_ref=f"scan:{run.id}"
+                )
                 db.commit()
 
 
@@ -198,6 +302,12 @@ async def scan_worker(app) -> None:
                     run.status = "failed"
                     run.error_summary = f"Worker error: {exc}"[:500]
                     run.finished_at = utcnow()
+                    add_event(
+                        db,
+                        "scan_failed",
+                        f"Scan #{run.id} worker error",
+                        evidence_ref=f"scan:{run.id}",
+                    )
                     db.commit()
         finally:
             app.state.scan_queue.task_done()
@@ -221,6 +331,14 @@ async def create_scan(
         error("job_limit", "Too many scans are already queued or running", 429)
     run = ScanRun(scope_id=scope.id, type="manual", status="queued", host_count=0)
     db.add(run)
+    db.flush()
+    add_event(
+        db,
+        "scan_queued",
+        f"Scan #{run.id} queued for {scope.cidr}",
+        actor=_user.user.username,
+        evidence_ref=f"scan:{run.id}",
+    )
     db.commit()
     db.refresh(run)
     queue.put_nowait(run.id)

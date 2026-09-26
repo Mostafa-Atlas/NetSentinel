@@ -15,6 +15,7 @@ import {
   type Observation,
   type Page,
   type ServiceObservation,
+  type TimelineEvent,
 } from "../../api";
 
 function errorMessage(cause: unknown): string {
@@ -24,7 +25,11 @@ function localTime(value: string | null): string {
   return value ? new Date(value).toLocaleString() : "Never";
 }
 
-export function Devices() {
+export function Devices({
+  initialDeviceId = null,
+}: {
+  initialDeviceId?: number | null;
+}) {
   const [devices, setDevices] = React.useState<Device[]>([]);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
@@ -32,10 +37,14 @@ export function Devices() {
   const [search, setSearch] = React.useState("");
   const [known, setKnown] = React.useState("");
   const [status, setStatus] = React.useState("");
-  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [alertFilter, setAlertFilter] = React.useState("all");
+  const [selectedId, setSelectedId] = React.useState<number | null>(
+    initialDeviceId,
+  );
   const [detail, setDetail] = React.useState<Device | null>(null);
   const [observations, setObservations] = React.useState<Observation[]>([]);
   const [services, setServices] = React.useState<ServiceObservation[]>([]);
+  const [events, setEvents] = React.useState<TimelineEvent[]>([]);
   const [name, setName] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [knownState, setKnownState] = React.useState<"known" | "unknown">(
@@ -50,6 +59,7 @@ export function Devices() {
     const params = new URLSearchParams({ limit: "100", search });
     if (known) params.set("known_state", known);
     if (status) params.set("status", status);
+    if (alertFilter !== "all") params.set("alert_filter", alertFilter);
     api<Page<Device>>(`/devices?${params}`)
       .then((page) => {
         setDevices(page.items);
@@ -57,7 +67,7 @@ export function Devices() {
       })
       .catch((cause) => setError(errorMessage(cause)))
       .finally(() => setLoading(false));
-  }, [search, known, status]);
+  }, [search, known, status, alertFilter]);
   React.useEffect(load, [load]);
   React.useEffect(() => {
     if (selectedId === null) {
@@ -68,14 +78,16 @@ export function Devices() {
       api<Device>(`/devices/${selectedId}`),
       api<Page<Observation>>(`/devices/${selectedId}/observations?limit=30`),
       api<Page<ServiceObservation>>(`/devices/${selectedId}/services?limit=30`),
+      api<Page<TimelineEvent>>(`/events?device_id=${selectedId}&limit=10`),
     ])
-      .then(([device, observationsPage, servicesPage]) => {
+      .then(([device, observationsPage, servicesPage, eventsPage]) => {
         setDetail(device);
         setName(device.display_name);
         setNotes(device.notes);
         setKnownState(device.known_state);
         setObservations(observationsPage.items);
         setServices(servicesPage.items);
+        setEvents(eventsPage.items);
       })
       .catch((cause) => setError(errorMessage(cause)));
   }, [selectedId]);
@@ -162,12 +174,24 @@ export function Devices() {
               <option value="offline">Offline</option>
             </select>
           </label>
+          <label htmlFor="alert-filter">
+            Alerts
+            <select
+              id="alert-filter"
+              value={alertFilter}
+              onChange={(event) => setAlertFilter(event.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="open">Open alerts</option>
+              <option value="clear">No open alerts</option>
+            </select>
+          </label>
         </div>
         {loading ? (
           <p role="status">Loading devices…</p>
         ) : devices.length === 0 ? (
           <p className="empty">
-            {search || known || status
+            {search || known || status || alertFilter !== "all"
               ? "No devices match these filters."
               : "No devices observed yet. Run discovery from Settings."}
           </p>
@@ -401,6 +425,27 @@ export function Devices() {
               )}
             </section>
           </div>
+          <section className="history-section">
+            <h3>Device events</h3>
+            {events.length ? (
+              <ul className="evidence-list">
+                {events.map((event) => (
+                  <li key={event.id}>
+                    <strong>{event.summary}</strong>
+                    <span>
+                      {event.event_type.replaceAll("_", " ")} · {event.actor}
+                    </span>
+                    <small>
+                      {localTime(event.occurred_at)} ·{" "}
+                      {event.evidence_ref || "No evidence reference"}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty">No device events yet.</p>
+            )}
+          </section>
         </div>
       )}
     </section>

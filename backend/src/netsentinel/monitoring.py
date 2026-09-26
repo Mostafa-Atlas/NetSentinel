@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
+from netsentinel.alerts import add_event
 from netsentinel.auth import Csrf, CurrentSession, Db
 from netsentinel.models import NetworkScope, ScanRun, Setting, utcnow
 
@@ -71,6 +72,13 @@ def schedule_once(app, now: datetime | None = None) -> int:
                 continue
             run = ScanRun(scope_id=scope.id, type="scheduled", status="queued", host_count=0)
             db.add(run)
+            db.flush()
+            add_event(
+                db,
+                "scan_queued",
+                f"Scheduled scan #{run.id} queued for {scope.cidr}",
+                evidence_ref=f"scan:{run.id}",
+            )
             db.commit()
             queue.put_nowait(run.id)
             created += 1
@@ -78,9 +86,16 @@ def schedule_once(app, now: datetime | None = None) -> int:
 
 
 async def scheduler_loop(app) -> None:
+    from netsentinel.retention import purge_probe_history
+
+    last_retention_at: datetime | None = None
     while True:
         try:
             schedule_once(app)
+            now = utcnow()
+            if last_retention_at is None or now - last_retention_at >= timedelta(days=1):
+                purge_probe_history(app, now)
+                last_retention_at = now
         except Exception:
             logger.exception("scheduler_tick_failed")
         await asyncio.sleep(30)
@@ -108,5 +123,6 @@ def patch_settings(
         else:
             row.value = json.dumps(value)
             row.updated_at = utcnow()
+    add_event(db, "settings_updated", "Monitoring settings updated", actor=_user.user.username)
     db.commit()
     return settings

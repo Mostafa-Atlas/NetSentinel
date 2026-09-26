@@ -28,6 +28,7 @@ test("setup leads to approved-scope form without showing fake devices", async ()
                     updated_at: null,
                     latest_scan: null,
                     recent_scans: [],
+                    recent_events: [],
                   }
                 : url.includes("/scans")
                   ? { items: [], total: 0, limit: 1, offset: 0 }
@@ -85,6 +86,7 @@ test("discovery requires a visible confirmation before queuing", async () => {
                       updated_at: null,
                       latest_scan: null,
                       recent_scans: [],
+                      recent_events: [],
                     }
                   : url.endsWith("/scopes")
                     ? [scope]

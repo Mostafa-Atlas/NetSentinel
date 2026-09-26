@@ -3,11 +3,11 @@
 from ipaddress import IPv4Address, IPv4Network
 
 from fastapi import APIRouter
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from netsentinel.auth import CurrentSession, Db
 from netsentinel.inventory import device_out
-from netsentinel.models import Device, NetworkScope, Observation, ScanRun
+from netsentinel.models import Alert, Device, Event, NetworkScope, Observation, ScanRun
 from netsentinel.scans import scan_out
 from netsentinel.timeutil import iso_utc
 
@@ -23,11 +23,15 @@ def overview(db: Db, _user: CurrentSession) -> dict:
         select(Observation).order_by(Observation.observed_at.desc(), Observation.id.desc())
     )
     recent_scans = db.scalars(select(ScanRun).order_by(ScanRun.id.desc()).limit(5)).all()
+    recent_events = db.scalars(
+        select(Event).order_by(Event.occurred_at.desc(), Event.id.desc()).limit(5)
+    ).all()
     times = [
         value
         for value in (
             (latest_scan.finished_at or latest_scan.started_at) if latest_scan else None,
             latest_observation.observed_at if latest_observation else None,
+            recent_events[0].occurred_at if recent_events else None,
         )
         if value
     ]
@@ -37,10 +41,23 @@ def overview(db: Db, _user: CurrentSession) -> dict:
         "online_count": sum(item["status"] == "online" for item in summaries),
         "review_count": sum(item["known_state"] == "unknown" for item in summaries),
         "offline_count": sum(item["status"] == "offline" for item in summaries),
-        "active_alert_count": 0,
+        "active_alert_count": db.scalar(
+            select(func.count(Alert.id)).where(Alert.status.in_(["active", "acknowledged"]))
+        )
+        or 0,
         "updated_at": updated_at,
         "latest_scan": scan_out(latest_scan) if latest_scan else None,
         "recent_scans": [scan_out(scan) for scan in recent_scans],
+        "recent_events": [
+            {
+                "id": event.id,
+                "summary": event.summary,
+                "event_type": event.event_type,
+                "occurred_at": iso_utc(event.occurred_at),
+                "actor": event.actor,
+            }
+            for event in recent_events
+        ],
     }
 
 

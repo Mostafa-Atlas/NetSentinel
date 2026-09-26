@@ -4,7 +4,7 @@ import { MonitoringSettings } from "./features/settings/MonitoringSettings";
 import { ScopePolicy } from "./features/settings/ScopePolicy";
 
 type User = { username: string };
-type View = "overview" | "devices" | "map" | "settings";
+type View = "overview" | "devices" | "map" | "alerts" | "timeline" | "settings";
 const Devices = React.lazy(() =>
   import("./features/devices/Devices").then((module) => ({
     default: module.Devices,
@@ -18,6 +18,16 @@ const Overview = React.lazy(() =>
 const NetworkMap = React.lazy(() =>
   import("./features/map/NetworkMap").then((module) => ({
     default: module.NetworkMap,
+  })),
+);
+const Alerts = React.lazy(() =>
+  import("./features/alerts/Alerts").then((module) => ({
+    default: module.Alerts,
+  })),
+);
+const Timeline = React.lazy(() =>
+  import("./features/timeline/Timeline").then((module) => ({
+    default: module.Timeline,
   })),
 );
 
@@ -363,6 +373,9 @@ export function App() {
   );
   const [user, setUser] = React.useState<User | null>(null);
   const [view, setView] = React.useState<View>("overview");
+  const [inspectDeviceId, setInspectDeviceId] = React.useState<number | null>(
+    null,
+  );
   const [health, setHealth] = React.useState("Checking API…");
   const [error, setError] = React.useState("");
   React.useEffect(() => {
@@ -403,6 +416,10 @@ export function App() {
     } catch (cause) {
       setError(messageOf(cause));
     }
+  }
+  function inspectDevice(id: number) {
+    setInspectDeviceId(id);
+    setView("devices");
   }
   if (error && bootstrapping === null)
     return (
@@ -461,6 +478,18 @@ export function App() {
             Network map
           </button>
           <button
+            className={view === "alerts" ? "nav-item active" : "nav-item"}
+            onClick={() => setView("alerts")}
+          >
+            Alerts
+          </button>
+          <button
+            className={view === "timeline" ? "nav-item active" : "nav-item"}
+            onClick={() => setView("timeline")}
+          >
+            Timeline
+          </button>
+          <button
             className={view === "settings" ? "nav-item active" : "nav-item"}
             onClick={() => setView("settings")}
           >
@@ -492,7 +521,18 @@ export function App() {
             <ScopeSettings />
           ) : view === "devices" ? (
             <React.Suspense fallback={<p role="status">Loading inventory…</p>}>
-              <Devices />
+              <Devices
+                key={inspectDeviceId ?? "inventory"}
+                initialDeviceId={inspectDeviceId}
+              />
+            </React.Suspense>
+          ) : view === "alerts" ? (
+            <React.Suspense fallback={<p role="status">Loading alerts…</p>}>
+              <Alerts onDevice={inspectDevice} />
+            </React.Suspense>
+          ) : view === "timeline" ? (
+            <React.Suspense fallback={<p role="status">Loading timeline…</p>}>
+              <Timeline onDevice={inspectDevice} />
             </React.Suspense>
           ) : view === "map" ? (
             <React.Suspense fallback={<p role="status">Loading map…</p>}>

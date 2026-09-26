@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from netsentinel.alerts import add_event
 from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.models import NetworkScope, utcnow
 from netsentinel.timeutil import iso_utc
@@ -122,6 +123,8 @@ def create_scope(payload: ScopeCreate, db: Db, _user: CurrentSession, _csrf: Csr
     )
     db.add(scope)
     try:
+        db.flush()
+        add_event(db, "scope_approved", f"Approved range {scope.cidr}", actor=_user.user.username)
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -166,5 +169,6 @@ def update_scope(
         scope.connect_timeout_ms = payload.connect_timeout_ms
     if payload.enabled is not None:
         scope.enabled = payload.enabled
+    add_event(db, "scope_updated", f"Updated range {scope.cidr}", actor=_user.user.username)
     db.commit()
     return scope_out(scope)

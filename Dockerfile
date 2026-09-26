@@ -1,15 +1,15 @@
 FROM node:24-alpine AS frontend
 WORKDIR /app/frontend
-RUN corepack enable
+RUN npm install -g pnpm@11.19.0
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-RUN corepack pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
-RUN corepack pnpm build
+RUN pnpm build
 
 FROM python:3.12-slim
 WORKDIR /app
 COPY backend/ ./backend/
-RUN pip install --no-cache-dir ./backend
+RUN pip install --no-cache-dir -r ./backend/requirements.lock && pip install --no-cache-dir --no-deps ./backend
 COPY --from=frontend /app/frontend/dist /app/static
 ENV NETSENTINEL_STATIC_DIR=/app/static
 ENV NETSENTINEL_DATABASE_URL=sqlite:////data/netsentinel.db

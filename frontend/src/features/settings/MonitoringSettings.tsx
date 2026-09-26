@@ -103,7 +103,27 @@ export function MonitoringSettings() {
                   }
                 />
               </label>
+              <label htmlFor="retention-days">
+                Probe evidence retention (days)
+                <input
+                  id="retention-days"
+                  type="number"
+                  min={7}
+                  max={365}
+                  value={settings.retention_days}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      retention_days: Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
             </div>
+            <p className="helper">
+              Old probe samples are removed daily. Evidence cited by an open
+              alert stays until that alert is resolved.
+            </p>
             {error && (
               <p className="error" role="alert">
                 {error}

@@ -8,9 +8,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
+from netsentinel.alerts import add_event
 from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.discovery import ProbeResult
-from netsentinel.models import Device, DeviceAddress, Observation, ServiceObservation, utcnow
+from netsentinel.models import Alert, Device, DeviceAddress, Observation, ServiceObservation, utcnow
 from netsentinel.monitoring import read_settings
 from netsentinel.timeutil import iso_utc
 
@@ -153,16 +154,22 @@ def list_devices(
     search: str = "",
     known_state: str | None = None,
     status: str | None = None,
+    alert_filter: str = "all",
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
     if limit < 1 or limit > 100 or offset < 0 or len(search) > 100:
         error("invalid_pagination", "Use limit 1–100, nonnegative offset, and a short search")
-    if known_state not in (None, "known", "unknown") or status not in (
-        None,
-        "online",
-        "offline",
-        "unconfirmed",
+    if (
+        known_state not in (None, "known", "unknown")
+        or alert_filter not in ("all", "open", "clear")
+        or status
+        not in (
+            None,
+            "online",
+            "offline",
+            "unconfirmed",
+        )
     ):
         error("invalid_filter", "Invalid device filter")
     devices = db.scalars(
@@ -181,6 +188,11 @@ def list_devices(
         items = [item for item in items if item["known_state"] == known_state]
     if status:
         items = [item for item in items if item["status"] == status]
+    if alert_filter != "all":
+        open_ids = set(
+            db.scalars(select(Alert.device_id).where(Alert.status.in_(["active", "acknowledged"])))
+        )
+        items = [item for item in items if (item["id"] in open_ids) == (alert_filter == "open")]
     return {
         "items": items[offset : offset + limit],
         "total": len(items),
@@ -207,6 +219,13 @@ def update_device(
         device.notes = payload.notes
     if payload.known_state is not None:
         device.known_state = payload.known_state
+    add_event(
+        db,
+        "device_updated",
+        f"Updated device #{device.id} owner details",
+        device_id=device.id,
+        actor=_user.user.username,
+    )
     db.commit()
     return device_out(db, device)
 
