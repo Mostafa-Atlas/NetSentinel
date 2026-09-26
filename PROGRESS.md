@@ -67,3 +67,25 @@ Commits and push status: working checkpoint `eb84e76` pushed to `origin/main`; f
 
 ### Next
 - P4 — inventory, address history, and editable labels.
+
+## Period P4 — Inventory
+Status: complete
+Human work time: not recorded
+Commits and push status: working checkpoint `268beb5` pushed to `origin/main`; final P4 commit pending.
+
+### Delivered
+- Conservative identity reconciliation that preserves separate devices when a reused IP has a different observed MAC.
+- Stable device IDs, address history, editable display names, familiarity, and notes.
+- Searchable/filterable inventory, device detail, reachability and TCP service evidence.
+
+### Checks
+- Backend format, lint, mypy, pytest — pass (12 tests).
+- Frontend format, lint, tests, typechecked build — pass (4 tests).
+- UI browser inspection unavailable because the in-app browser helper exited during sandbox setup; UI behavior tested in jsdom.
+
+### Decisions and limitations
+- MAC associations are labeled observed, not verified. IP-only devices remain provisional and may require manual review when a MAC later appears.
+- List queries are optimized for a small LAN and paginate responses; larger deployments would need query-level filtering.
+
+### Next
+- P5 — scheduled monitoring, reachability history, and service change detection.
