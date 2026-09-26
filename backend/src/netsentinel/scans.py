@@ -9,15 +9,15 @@ from sqlalchemy import func, select, update
 
 from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.discovery import ProbeResult
+from netsentinel.inventory import reconcile_device
 from netsentinel.models import (
-    Device,
-    DeviceAddress,
     NetworkScope,
     Observation,
     ScanRun,
     ServiceObservation,
     utcnow,
 )
+from netsentinel.timeutil import iso_utc
 
 router = APIRouter(prefix="/api/v1/scans", tags=["scans"])
 
@@ -43,8 +43,8 @@ def scan_out(scan: ScanRun) -> ScanOut:
         scope_id=scan.scope_id,
         type=scan.type,
         status=scan.status,
-        started_at=scan.started_at.isoformat() if scan.started_at else None,
-        finished_at=scan.finished_at.isoformat() if scan.finished_at else None,
+        started_at=iso_utc(scan.started_at),
+        finished_at=iso_utc(scan.finished_at),
         host_count=scan.host_count,
         error_summary=scan.error_summary,
     )
@@ -65,38 +65,11 @@ def recover_interrupted(app) -> None:
 
 
 def persist_result(db, run: ScanRun, result: ProbeResult) -> bool:
-    """P3 provisional identity: a known IP is reused until P4 reconciliation."""
+    """Store immutable observations for a conservatively reconciled device."""
     if result.reachable is not True and not result.mac:
         return False
-    address = db.scalar(
-        select(DeviceAddress)
-        .where(DeviceAddress.ip == result.ip)
-        .order_by(DeviceAddress.last_seen_at.desc())
-    )
     now = utcnow()
-    if address:
-        device = db.get(Device, address.device_id)
-        if device is None:
-            raise RuntimeError("Device address has no device")
-        address.last_seen_at = now
-        if result.mac:
-            address.mac = result.mac
-    else:
-        device = Device(
-            display_name=result.ip,
-            identity_confidence="provisional",
-            known_state="unknown",
-            notes="",
-            first_seen_at=now,
-            last_seen_at=now,
-        )
-        db.add(device)
-        db.flush()
-        address = DeviceAddress(
-            device_id=device.id, ip=result.ip, mac=result.mac, first_seen_at=now, last_seen_at=now
-        )
-        db.add(address)
-    device.last_seen_at = now
+    device = reconcile_device(db, result, now)
     db.add(
         Observation(
             device_id=device.id,

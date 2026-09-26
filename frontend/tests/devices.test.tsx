@@ -1,0 +1,91 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
+import { App } from "../src/App";
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+test("inventory opens evidence and saves an owner label", async () => {
+  const device = {
+    id: 1,
+    display_name: "10.0.0.7",
+    identity_confidence: "observed_mac",
+    known_state: "unknown",
+    notes: "",
+    first_seen_at: "2026-09-27T00:00:00Z",
+    last_seen_at: "2026-09-27T00:00:00Z",
+    last_observed_at: "2026-09-27T00:00:00Z",
+    status: "online",
+    addresses: [
+      {
+        ip: "10.0.0.7",
+        mac: "aa:bb:cc:dd:ee:ff",
+        hostname: null,
+        first_seen_at: "2026-09-27T00:00:00Z",
+        last_seen_at: "2026-09-27T00:00:00Z",
+      },
+    ],
+  };
+  const fetchMock = vi
+    .fn()
+    .mockImplementation((url: string, options?: RequestInit) =>
+      Promise.resolve({
+        ok: true,
+        json: async () =>
+          url === "/health"
+            ? { status: "ok" }
+            : url.endsWith("bootstrap-status")
+              ? { needs_setup: false }
+              : url.endsWith("/auth/me")
+                ? { username: "owner" }
+                : url.includes("/devices?")
+                  ? { items: [device], total: 1, limit: 100, offset: 0 }
+                  : url.endsWith("/devices/1/observations?limit=30")
+                    ? {
+                        items: [
+                          {
+                            id: 1,
+                            scan_run_id: 1,
+                            observed_at: "2026-09-27T00:00:00Z",
+                            source: "tcp",
+                            reachable: true,
+                            latency_ms: 4,
+                            raw_summary: "Mocked connect",
+                          },
+                        ],
+                        total: 1,
+                      }
+                    : url.includes("/services?")
+                      ? { items: [], total: 0 }
+                      : url.endsWith("/devices/1") &&
+                          options?.method === "PATCH"
+                        ? {
+                            ...device,
+                            display_name: "Desk",
+                            known_state: "known",
+                          }
+                        : device,
+      }),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Devices" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open 10.0.0.7" }));
+  expect(
+    await screen.findByText("Observed MAC aa:bb:cc:dd:ee:ff"),
+  ).toBeTruthy();
+  expect(screen.getByText("Reachability evidence")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Display name"), {
+    target: { value: "Desk" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  expect(await screen.findByText("Device details saved.")).toBeTruthy();
+  expect(
+    fetchMock.mock.calls.some(
+      ([url, options]) =>
+        url === "/api/v1/devices/1" && options?.method === "PATCH",
+    ),
+  ).toBe(true);
+});

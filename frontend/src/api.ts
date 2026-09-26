@@ -30,6 +30,43 @@ export type Page<T> = {
   limit: number;
   offset: number;
 };
+export type DeviceAddress = {
+  ip: string;
+  mac: string | null;
+  hostname: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+};
+export type Device = {
+  id: number;
+  display_name: string;
+  identity_confidence: "observed_mac" | "provisional";
+  known_state: "known" | "unknown";
+  notes: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  last_observed_at: string | null;
+  status: "online" | "offline" | "unconfirmed";
+  addresses: DeviceAddress[];
+};
+export type Observation = {
+  id: number;
+  scan_run_id: number;
+  observed_at: string;
+  source: string;
+  reachable: boolean | null;
+  latency_ms: number | null;
+  raw_summary: string;
+};
+export type ServiceObservation = {
+  id: number;
+  scan_run_id: number;
+  ip: string;
+  port: number;
+  protocol: string;
+  state: "reachable" | "unreachable" | "unknown";
+  observed_at: string;
+};
 
 function csrfToken(): string {
   const entry = document.cookie

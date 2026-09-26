@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.models import NetworkScope, utcnow
+from netsentinel.timeutil import iso_utc
 
 router = APIRouter(prefix="/api/v1/scopes", tags=["scopes"])
 
@@ -80,7 +81,7 @@ def scope_out(scope: NetworkScope) -> ScopeOut:
         name=scope.name,
         cidr=scope.cidr,
         enabled=scope.enabled,
-        approved_at=scope.approved_at.isoformat(),
+        approved_at=iso_utc(scope.approved_at) or "",
         max_concurrency=scope.max_concurrency,
         connect_timeout_ms=scope.connect_timeout_ms,
         ports=[int(p) for p in scope.ports.split(",")],

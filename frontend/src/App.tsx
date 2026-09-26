@@ -1,8 +1,9 @@
 import React from "react";
 import { api, type ApiError, type Page, type Scan, type Scope } from "./api";
+import { Devices } from "./features/devices/Devices";
 
 type User = { username: string };
-type View = "overview" | "settings";
+type View = "overview" | "devices" | "settings";
 
 function messageOf(error: unknown): string {
   return (error as ApiError)?.message || "The request failed. Try again.";
@@ -406,6 +407,12 @@ export function App() {
             Overview
           </button>
           <button
+            className={view === "devices" ? "nav-item active" : "nav-item"}
+            onClick={() => setView("devices")}
+          >
+            Devices
+          </button>
+          <button
             className={view === "settings" ? "nav-item active" : "nav-item"}
             onClick={() => setView("settings")}
           >
@@ -435,6 +442,8 @@ export function App() {
           )}
           {view === "settings" ? (
             <ScopeSettings />
+          ) : view === "devices" ? (
+            <Devices />
           ) : (
             <section>
               <div className="page-heading">
