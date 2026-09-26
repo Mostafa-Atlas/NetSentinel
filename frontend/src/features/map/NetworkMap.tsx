@@ -15,6 +15,7 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
   const [topology, setTopology] = React.useState<Topology | null>(null);
   const [error, setError] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [graphAvailable, setGraphAvailable] = React.useState(true);
   const graphRef = React.useRef<HTMLDivElement>(null);
   const cyRef = React.useRef<Core | null>(null);
   React.useEffect(() => {
@@ -46,67 +47,72 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
         },
       })),
     ];
-    const cy = cytoscape({
-      container: graphRef.current,
-      elements,
-      layout: { name: "breadthfirst", directed: true, spacingFactor: 1.4 },
-      style: [
-        {
-          selector: "node",
-          style: {
-            "background-color": "#1b4058",
-            "border-color": "#68cbe8",
-            "border-width": 2,
-            label: "data(label)",
-            color: "#e8f2f8",
-            "font-size": 13,
-            "text-valign": "bottom",
-            "text-margin-y": 10,
-            "text-wrap": "wrap",
-            "text-max-width": "125px",
-            width: 46,
-            height: 46,
+    let cy: Core | null = null;
+    try {
+      cy = cytoscape({
+        container: graphRef.current,
+        elements,
+        layout: { name: "breadthfirst", directed: true, spacingFactor: 1.4 },
+        style: [
+          {
+            selector: "node",
+            style: {
+              "background-color": "#1b4058",
+              "border-color": "#68cbe8",
+              "border-width": 2,
+              label: "data(label)",
+              color: "#e8f2f8",
+              "font-size": 13,
+              "text-valign": "bottom",
+              "text-margin-y": 10,
+              "text-wrap": "wrap",
+              "text-max-width": "125px",
+              width: 46,
+              height: 46,
+            },
           },
-        },
-        {
-          selector: 'node[kind = "subnet"]',
-          style: {
-            shape: "round-rectangle",
-            width: 92,
-            height: 52,
-            "background-color": "#24546b",
+          {
+            selector: 'node[kind = "subnet"]',
+            style: {
+              shape: "round-rectangle",
+              width: 92,
+              height: 52,
+              "background-color": "#24546b",
+            },
           },
-        },
-        {
-          selector: 'node[status = "unconfirmed"]',
-          style: { "border-color": "#e5bd6b" },
-        },
-        {
-          selector: 'node[status = "offline"]',
-          style: { "border-color": "#dd8c88" },
-        },
-        {
-          selector: "edge",
-          style: {
-            width: 2,
-            "line-color": "#57768b",
-            "line-style": "dashed",
-            "target-arrow-shape": "none",
-            "curve-style": "bezier",
+          {
+            selector: 'node[status = "unconfirmed"]',
+            style: { "border-color": "#e5bd6b" },
           },
-        },
-        {
-          selector: ":selected",
-          style: { "border-width": 4, "border-color": "#a7ebfb" },
-        },
-      ],
-    });
-    cy.on("tap", 'node[kind = "device"]', (event) =>
-      setSelectedId(event.target.id()),
-    );
-    cyRef.current = cy;
+          {
+            selector: 'node[status = "offline"]',
+            style: { "border-color": "#dd8c88" },
+          },
+          {
+            selector: "edge",
+            style: {
+              width: 2,
+              "line-color": "#57768b",
+              "line-style": "dashed",
+              "target-arrow-shape": "none",
+              "curve-style": "bezier",
+            },
+          },
+          {
+            selector: ":selected",
+            style: { "border-width": 4, "border-color": "#a7ebfb" },
+          },
+        ],
+      });
+      cy.on("tap", 'node[kind = "device"]', (event) =>
+        setSelectedId(event.target.id()),
+      );
+      cyRef.current = cy;
+    } catch {
+      setGraphAvailable(false);
+    }
     return () => {
-      cy.destroy();
+      cy?.destroy();
       cyRef.current = null;
     };
   }, [topology, deviceNodes.length]);
@@ -161,7 +167,14 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
       ) : (
         <div className="map-layout">
           <div className="panel map-panel">
-            <div ref={graphRef} className="map-canvas" aria-hidden="true" />
+            {graphAvailable ? (
+              <div ref={graphRef} className="map-canvas" aria-hidden="true" />
+            ) : (
+              <p className="empty">
+                Graph rendering is unavailable in this browser. Use the device
+                list to inspect the same observations.
+              </p>
+            )}
           </div>
           <div className="panel map-list">
             <h2>Devices in map</h2>

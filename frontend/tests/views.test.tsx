@@ -91,47 +91,45 @@ test("overview and keyboard map list show observed data and inferred provenance"
 test("empty map explains how to populate it", async () => {
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockImplementation((url: string) =>
-        Promise.resolve({
-          ok: true,
-          json: async () =>
-            url === "/health"
-              ? { status: "ok" }
-              : url.endsWith("bootstrap-status")
-                ? { needs_setup: false }
-                : url.endsWith("/auth/me")
-                  ? { username: "owner" }
-                  : url.endsWith("/overview")
-                    ? {
-                        device_count: 0,
-                        online_count: 0,
-                        review_count: 0,
-                        offline_count: 0,
-                        active_alert_count: 0,
-                        updated_at: null,
-                        latest_scan: null,
-                        recent_scans: [],
-                      }
-                    : url.endsWith("/scopes")
-                      ? []
-                      : url.endsWith("/settings")
-                        ? {
-                            schedule_enabled: false,
-                            interval_minutes: 30,
-                            offline_threshold: 2,
-                            retention_days: 30,
-                          }
-                        : url.includes("/scans")
-                          ? { items: [], total: 0, limit: 1, offset: 0 }
-                          : {
-                              nodes: [],
-                              links: [],
-                              legend: { inferred: "No physical link verified" },
-                            },
-        }),
-      ),
+    vi.fn().mockImplementation((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: async () =>
+          url === "/health"
+            ? { status: "ok" }
+            : url.endsWith("bootstrap-status")
+              ? { needs_setup: false }
+              : url.endsWith("/auth/me")
+                ? { username: "owner" }
+                : url.endsWith("/overview")
+                  ? {
+                      device_count: 0,
+                      online_count: 0,
+                      review_count: 0,
+                      offline_count: 0,
+                      active_alert_count: 0,
+                      updated_at: null,
+                      latest_scan: null,
+                      recent_scans: [],
+                    }
+                  : url.endsWith("/scopes")
+                    ? []
+                    : url.endsWith("/settings")
+                      ? {
+                          schedule_enabled: false,
+                          interval_minutes: 30,
+                          offline_threshold: 2,
+                          retention_days: 30,
+                        }
+                      : url.includes("/scans")
+                        ? { items: [], total: 0, limit: 1, offset: 0 }
+                        : {
+                            nodes: [],
+                            links: [],
+                            legend: { inferred: "No physical link verified" },
+                          },
+      }),
+    ),
   );
   render(<App />);
   fireEvent.click(await screen.findByRole("button", { name: "Network map" }));

@@ -112,3 +112,25 @@ Commits and push status: working checkpoint `e7102a6` pushed to `origin/main`; f
 
 ### Next
 - P6 — inferred network map and overview dashboard.
+
+## Period P6 — Map and overview
+Status: complete
+Human work time: not recorded
+Commits and push status: working checkpoint `49ca92a` pushed to `origin/main`; final P6 commit pending.
+
+### Delivered
+- Timestamped overview metrics, latest scan, recent scan history, and honest empty state.
+- Interactive subnet/device map with dashed inferred links and provenance; keyboard-reachable device list and graph-unavailable fallback.
+- Responsive layouts and separately loaded map/inventory bundles.
+
+### Checks
+- Backend format, lint, mypy, pytest — pass (16 tests).
+- Frontend format, lint, tests, typechecked build — pass (8 tests).
+- Browser visual check remains unverified because the in-app browser helper cannot start in this sandbox.
+
+### Decisions and limitations
+- Subnet grouping is an inference from observed IPs. No physical router or switch connection is asserted.
+- The overview's active-alert count is prepared for P7 and is zero until alert persistence is added.
+
+### Next
+- P7 — alert workflow, event timeline, retention, release checks, and end-to-end flow.
