@@ -45,3 +45,25 @@ Commits and push status: backend checkpoint `774e19d` pushed to `origin/main`; f
 
 ### Next
 - P3 — bounded discovery jobs and observations.
+
+## Period P3 — Discovery
+Status: complete
+Human work time: not recorded
+Commits and push status: working checkpoint `eb84e76` pushed to `origin/main`; final P3 commit pending.
+
+### Delivered
+- Bounded asynchronous probe runner using OS neighbor hints, ICMP where available, and TCP connect checks with no raw-socket requirement.
+- Persisted scan jobs and evidence; queued scans return promptly and interrupted jobs fail on restart.
+- Settings action confirms the probe volume and polls job status.
+
+### Checks
+- Backend format, lint, mypy, pytest — pass (10 tests, including direct mocked probe runner).
+- Frontend format, lint, tests, build — pass (3 tests).
+- Live scan — intentionally not run; no owner-approved range was configured for this session.
+
+### Decisions and limitations
+- Neighbor entries are hints with unknown reachability unless a probe responds.
+- Identity matching is provisional in P3; P4 adds reconciliation and inventory presentation.
+
+### Next
+- P4 — inventory, address history, and editable labels.
