@@ -61,6 +61,7 @@ class NetworkScope(Base):
     max_concurrency: Mapped[int] = mapped_column(Integer, default=32)
     connect_timeout_ms: Mapped[int] = mapped_column(Integer, default=1000)
     ports: Mapped[str] = mapped_column(String(100), default="22,80,443")
+    passive_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -137,6 +138,18 @@ class ServiceObservation(Base):
     observed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )
+
+
+class DeviceHint(Base):
+    __tablename__ = "device_hints"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id", ondelete="CASCADE"))
+    ip: Mapped[str] = mapped_column(String(45))
+    source: Mapped[str] = mapped_column(String(16))
+    kind: Mapped[str] = mapped_column(String(24))
+    value: Mapped[str] = mapped_column(String(255))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Alert(Base):

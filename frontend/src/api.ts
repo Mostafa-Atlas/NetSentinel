@@ -14,6 +14,7 @@ export type Scope = {
   max_concurrency: number;
   connect_timeout_ms: number;
   ports: number[];
+  passive_enabled: boolean;
 };
 export type NetworkProfile = {
   id: number;
@@ -85,6 +86,16 @@ export type ServiceObservation = {
   port: number;
   protocol: string;
   state: "reachable" | "unreachable" | "unknown";
+  observed_at: string;
+};
+export type PassiveHint = {
+  id: number;
+  scan_run_id: number;
+  ip: string;
+  source: "mdns" | "ssdp";
+  kind: "hostname" | "advertised_type";
+  value: string;
+  confidence: "unverified_advertisement";
   observed_at: string;
 };
 export type MonitoringSettings = {

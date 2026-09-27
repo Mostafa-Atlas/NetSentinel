@@ -11,7 +11,15 @@ from sqlalchemy.orm import Session as DBSession
 from netsentinel.alerts import add_event
 from netsentinel.auth import Csrf, CurrentSession, Db, error
 from netsentinel.discovery import ProbeResult
-from netsentinel.models import Alert, Device, DeviceAddress, Observation, ServiceObservation, utcnow
+from netsentinel.models import (
+    Alert,
+    Device,
+    DeviceAddress,
+    DeviceHint,
+    Observation,
+    ServiceObservation,
+    utcnow,
+)
 from netsentinel.monitoring import read_settings
 from netsentinel.timeutil import iso_utc
 
@@ -310,6 +318,41 @@ def services(
                 "port": row.port,
                 "protocol": row.protocol,
                 "state": row.state,
+                "observed_at": iso_utc(row.observed_at),
+            }
+            for row in rows
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/{device_id}/hints")
+def hints(device_id: int, db: Db, _user: CurrentSession, limit: int = 50, offset: int = 0) -> dict:
+    get_device(db, device_id)
+    if limit < 1 or limit > 100 or offset < 0:
+        error("invalid_pagination", "Use limit 1–100 and nonnegative offset")
+    total = (
+        db.scalar(select(func.count(DeviceHint.id)).where(DeviceHint.device_id == device_id)) or 0
+    )
+    rows = db.scalars(
+        select(DeviceHint)
+        .where(DeviceHint.device_id == device_id)
+        .order_by(DeviceHint.observed_at.desc(), DeviceHint.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return {
+        "items": [
+            {
+                "id": row.id,
+                "scan_run_id": row.scan_run_id,
+                "ip": row.ip,
+                "source": row.source,
+                "kind": row.kind,
+                "value": row.value,
+                "confidence": "unverified_advertisement",
                 "observed_at": iso_utc(row.observed_at),
             }
             for row in rows

@@ -14,6 +14,7 @@ import {
   type Device,
   type IdentityReview,
   type Observation,
+  type PassiveHint,
   type Page,
   type ServiceObservation,
   type TimelineEvent,
@@ -45,6 +46,7 @@ export function Devices({
   const [detail, setDetail] = React.useState<Device | null>(null);
   const [observations, setObservations] = React.useState<Observation[]>([]);
   const [services, setServices] = React.useState<ServiceObservation[]>([]);
+  const [hints, setHints] = React.useState<PassiveHint[]>([]);
   const [events, setEvents] = React.useState<TimelineEvent[]>([]);
   const [identity, setIdentity] = React.useState<IdentityReview | null>(null);
   const [name, setName] = React.useState("");
@@ -81,19 +83,30 @@ export function Devices({
       api<Device>(`/devices/${selectedId}`),
       api<Page<Observation>>(`/devices/${selectedId}/observations?limit=30`),
       api<Page<ServiceObservation>>(`/devices/${selectedId}/services?limit=30`),
+      api<Page<PassiveHint>>(`/devices/${selectedId}/hints?limit=30`),
       api<Page<TimelineEvent>>(`/events?device_id=${selectedId}&limit=10`),
       api<IdentityReview>(`/devices/${selectedId}/identity-review`),
     ])
-      .then(([device, observationsPage, servicesPage, eventsPage, review]) => {
-        setDetail(device);
-        setName(device.display_name);
-        setNotes(device.notes);
-        setKnownState(device.known_state);
-        setObservations(observationsPage.items);
-        setServices(servicesPage.items);
-        setEvents(eventsPage.items);
-        setIdentity(review);
-      })
+      .then(
+        ([
+          device,
+          observationsPage,
+          servicesPage,
+          hintsPage,
+          eventsPage,
+          review,
+        ]) => {
+          setDetail(device);
+          setName(device.display_name);
+          setNotes(device.notes);
+          setKnownState(device.known_state);
+          setObservations(observationsPage.items);
+          setServices(servicesPage.items);
+          setHints(hintsPage.items);
+          setEvents(eventsPage.items);
+          setIdentity(review);
+        },
+      )
       .catch((cause) => setError(errorMessage(cause)));
   }, [selectedId]);
 
@@ -527,6 +540,34 @@ export function Devices({
               )}
             </section>
           </div>
+          <section className="history-section">
+            <h3>Passive network hints</h3>
+            <p className="muted">
+              mDNS and SSDP advertisements are unverified metadata. They do not
+              establish device identity, reachability, or a product name.
+            </p>
+            {hints.length ? (
+              <ul className="evidence-list">
+                {hints.map((hint) => (
+                  <li key={hint.id}>
+                    <strong>{hint.value}</strong>
+                    <span>
+                      {hint.kind.replaceAll("_", " ")} ·{" "}
+                      {hint.source.toUpperCase()} · unverified
+                    </span>
+                    <small>
+                      {hint.ip} · {localTime(hint.observed_at)} · Scan #
+                      {hint.scan_run_id}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty">
+                No passive hints recorded for this device.
+              </p>
+            )}
+          </section>
           <section className="history-section">
             <h3>Device events</h3>
             {events.length ? (

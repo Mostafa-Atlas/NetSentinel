@@ -11,6 +11,9 @@ export function ScopePolicy({
   const [ports, setPorts] = React.useState(scope.ports.join(", "));
   const [concurrency, setConcurrency] = React.useState(scope.max_concurrency);
   const [timeout, setTimeoutMs] = React.useState(scope.connect_timeout_ms);
+  const [passiveEnabled, setPassiveEnabled] = React.useState(
+    scope.passive_enabled,
+  );
   const [approved, setApproved] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -37,6 +40,7 @@ export function ScopePolicy({
           ports: parsed,
           max_concurrency: concurrency,
           connect_timeout_ms: timeout,
+          passive_enabled: passiveEnabled,
           approved,
         }),
       });
@@ -82,6 +86,16 @@ export function ScopePolicy({
           />
         </label>
       </div>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={passiveEnabled}
+          onChange={(event) => setPassiveEnabled(event.target.checked)}
+        />
+        <span>
+          Listen for mDNS and SSDP hints during scans (unverified metadata).
+        </span>
+      </label>
       <label className="check-row">
         <input
           type="checkbox"

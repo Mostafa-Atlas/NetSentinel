@@ -47,6 +47,7 @@ class ScopeCreate(BaseModel):
     max_concurrency: int = Field(default=32, ge=1, le=32)
     connect_timeout_ms: int = Field(default=1000, ge=100, le=1000)
     ports: list[int] = Field(default_factory=lambda: [22, 80, 443], min_length=1, max_length=16)
+    passive_enabled: bool = False
 
     @field_validator("cidr")
     @classmethod
@@ -69,6 +70,7 @@ class ScopeUpdate(BaseModel):
     max_concurrency: int | None = Field(default=None, ge=1, le=32)
     connect_timeout_ms: int | None = Field(default=None, ge=100, le=1000)
     ports: list[int] | None = Field(default=None, min_length=1, max_length=16)
+    passive_enabled: bool | None = None
 
     @field_validator("ports")
     @classmethod
@@ -90,6 +92,7 @@ class ScopeOut(BaseModel):
     max_concurrency: int
     connect_timeout_ms: int
     ports: list[int]
+    passive_enabled: bool
 
 
 def scope_out(scope: NetworkScope) -> ScopeOut:
@@ -103,6 +106,7 @@ def scope_out(scope: NetworkScope) -> ScopeOut:
         max_concurrency=scope.max_concurrency,
         connect_timeout_ms=scope.connect_timeout_ms,
         ports=[int(p) for p in scope.ports.split(",")],
+        passive_enabled=scope.passive_enabled,
     )
 
 
@@ -131,6 +135,7 @@ def create_scope(payload: ScopeCreate, db: Db, _user: CurrentSession, _csrf: Csr
         max_concurrency=payload.max_concurrency,
         connect_timeout_ms=payload.connect_timeout_ms,
         ports=",".join(str(p) for p in payload.ports),
+        passive_enabled=payload.passive_enabled,
     )
     db.add(scope)
     try:
@@ -176,6 +181,9 @@ def update_scope(
             payload.connect_timeout_ms is not None
             and payload.connect_timeout_ms != scope.connect_timeout_ms
         )
+        or (
+            payload.passive_enabled is not None and payload.passive_enabled != scope.passive_enabled
+        )
     )
     if policy_changed and not payload.approved:
         error("approval_required", "Confirm the updated probe policy for this range")
@@ -185,6 +193,8 @@ def update_scope(
         scope.max_concurrency = payload.max_concurrency
     if payload.connect_timeout_ms is not None:
         scope.connect_timeout_ms = payload.connect_timeout_ms
+    if payload.passive_enabled is not None:
+        scope.passive_enabled = payload.passive_enabled
     if payload.enabled is not None:
         scope.enabled = payload.enabled
     add_event(db, "scope_updated", f"Updated range {scope.cidr}", actor=_user.user.username)

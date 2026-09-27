@@ -14,6 +14,7 @@ from netsentinel.inventory import reconcile_device
 from netsentinel.models import (
     Device,
     DeviceAddress,
+    DeviceHint,
     NetworkScope,
     Observation,
     ScanRun,
@@ -133,6 +134,24 @@ def persist_result(db, run: ScanRun, result: ProbeResult) -> int | None:
     )
     db.add(observation)
     db.flush()
+    for hint in result.hints if scope and scope.passive_enabled else ():
+        if (
+            hint.ip == result.ip
+            and (hint.source, hint.kind) in (("mdns", "hostname"), ("ssdp", "advertised_type"))
+            and 0 < len(hint.value) <= 255
+            and hint.value.isprintable()
+        ):
+            db.add(
+                DeviceHint(
+                    device_id=device.id,
+                    scan_run_id=run.id,
+                    ip=result.ip,
+                    source=hint.source,
+                    kind=hint.kind,
+                    value=hint.value,
+                    observed_at=now,
+                )
+            )
     if prior_response is None and reachable is True:
         upsert_alert(
             db,

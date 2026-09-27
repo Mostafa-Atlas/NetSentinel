@@ -18,6 +18,7 @@ test("scheduled monitoring and a port policy require explicit opt-in", async () 
     max_concurrency: 32,
     connect_timeout_ms: 1000,
     ports: [22, 80, 443],
+    passive_enabled: false,
   };
   const settings = {
     schedule_enabled: false,

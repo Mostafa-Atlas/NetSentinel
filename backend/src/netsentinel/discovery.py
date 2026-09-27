@@ -5,10 +5,11 @@ import platform
 import re
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from ipaddress import IPv4Address, IPv4Network
 
 from netsentinel.models import NetworkScope
+from netsentinel.passive import PassiveHint, collect_hints
 
 MAC_PATTERN = re.compile(r"\b([0-9a-fA-F]{2}(?:[:-][0-9a-fA-F]{2}){5})\b")
 IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
@@ -22,6 +23,7 @@ class ProbeResult:
     mac: str | None
     source: str
     services: dict[int, str]
+    hints: tuple[PassiveHint, ...] = ()
 
 
 def neighbors(network: IPv4Network) -> dict[str, str]:
@@ -90,6 +92,9 @@ class DefaultProbeRunner:
         semaphore = asyncio.Semaphore(min(scope.max_concurrency, 32))
         ports = [int(port) for port in scope.ports.split(",")]
         timeout = min(scope.connect_timeout_ms, 1000) / 1000
+        passive_task = (
+            asyncio.create_task(collect_hints(network)) if scope.passive_enabled else None
+        )
 
         async def one(ip: str) -> ProbeResult:
             async with semaphore:
@@ -123,4 +128,15 @@ class DefaultProbeRunner:
                     services=services,
                 )
 
-        return await asyncio.gather(*(one(str(ip)) for ip in network.hosts()))
+        try:
+            results = await asyncio.gather(*(one(str(ip)) for ip in network.hosts()))
+            hints = await passive_task if passive_task else []
+        except BaseException:
+            if passive_task:
+                passive_task.cancel()
+                await asyncio.gather(passive_task, return_exceptions=True)
+            raise
+        by_ip: dict[str, list[PassiveHint]] = {}
+        for hint in hints:
+            by_ip.setdefault(hint.ip, []).append(hint)
+        return [replace(result, hints=tuple(by_ip.get(result.ip, ()))) for result in results]

@@ -64,6 +64,7 @@ test("discovery requires a visible confirmation before queuing", async () => {
     max_concurrency: 32,
     connect_timeout_ms: 1000,
     ports: [22, 80, 443],
+    passive_enabled: false,
   };
   const fetchMock = vi
     .fn()

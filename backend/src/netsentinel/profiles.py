@@ -117,6 +117,7 @@ def export_profile(profile_id: int, db: Db, _user: CurrentSession) -> dict:
                 "ports": [int(port) for port in scope.ports.split(",")],
                 "max_concurrency": scope.max_concurrency,
                 "connect_timeout_ms": scope.connect_timeout_ms,
+                "passive_enabled": scope.passive_enabled,
             }
             for scope in scopes
         ],
