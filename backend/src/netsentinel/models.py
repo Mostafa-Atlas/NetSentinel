@@ -216,6 +216,18 @@ class AgentReport(Base):
     containers_json: Mapped[str] = mapped_column(Text, default="[]")
 
 
+class TopologyLink(Base):
+    __tablename__ = "topology_links"
+    __table_args__ = (UniqueConstraint("source_id", "target_id", name="uq_topology_link_pair"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    target_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    label: Mapped[str] = mapped_column(String(100))
+    note: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Alert(Base):
     __tablename__ = "alerts"
     __table_args__ = (

@@ -7,7 +7,15 @@ from sqlalchemy import func, select
 
 from netsentinel.auth import CurrentSession, Db
 from netsentinel.inventory import device_out
-from netsentinel.models import Alert, Device, Event, NetworkScope, Observation, ScanRun
+from netsentinel.models import (
+    Alert,
+    Device,
+    Event,
+    NetworkScope,
+    Observation,
+    ScanRun,
+    TopologyLink,
+)
 from netsentinel.scans import scan_out
 from netsentinel.timeutil import iso_utc
 
@@ -108,8 +116,22 @@ def topology(db: Db, _user: CurrentSession) -> dict:
                     "provenance": "IP observed in approved subnet; physical link unknown",
                 }
             )
+    for link in db.scalars(select(TopologyLink).order_by(TopologyLink.id)):
+        links.append(
+            {
+                "source": f"device:{link.source_id}",
+                "target": f"device:{link.target_id}",
+                "kind": "owner_annotation",
+                "provenance": "Owner supplied; physical connection not verified",
+                "label": link.label,
+                "annotation_id": str(link.id),
+            }
+        )
     return {
         "nodes": nodes,
         "links": links,
-        "legend": {"inferred": "Subnet link inferred from IP; no physical connection verified"},
+        "legend": {
+            "inferred": "Subnet link inferred from IP; no physical connection verified",
+            "owner_annotation": "Owner supplied; physical connection not verified",
+        },
     }

@@ -3,6 +3,8 @@ import cytoscape, { type Core, type ElementDefinition } from "cytoscape";
 import {
   api,
   type ApiError,
+  type Comparison,
+  type LinkAnnotation,
   type Topology,
   type TopologyNode,
 } from "../../api";
@@ -16,6 +18,13 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
   const [error, setError] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [graphAvailable, setGraphAvailable] = React.useState(true);
+  const [annotations, setAnnotations] = React.useState<LinkAnnotation[]>([]);
+  const [sourceId, setSourceId] = React.useState(0);
+  const [targetId, setTargetId] = React.useState(0);
+  const [label, setLabel] = React.useState("");
+  const [note, setNote] = React.useState("");
+  const [comparison, setComparison] = React.useState<Comparison | null>(null);
+  const [actionError, setActionError] = React.useState("");
   const graphRef = React.useRef<HTMLDivElement>(null);
   const cyRef = React.useRef<Core | null>(null);
   React.useEffect(() => {
@@ -23,6 +32,15 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
       .then(setTopology)
       .catch((cause) =>
         setError((cause as ApiError)?.message || "Unable to load topology."),
+      );
+  }, []);
+  React.useEffect(() => {
+    api<LinkAnnotation[]>("/topology/annotations")
+      .then(setAnnotations)
+      .catch((cause) =>
+        setActionError(
+          (cause as ApiError)?.message || "Unable to load annotations.",
+        ),
       );
   }, []);
   const deviceNodes =
@@ -99,6 +117,10 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
             },
           },
           {
+            selector: 'edge[kind = "owner_annotation"]',
+            style: { "line-style": "solid", "line-color": "#8ee7c1", width: 3 },
+          },
+          {
             selector: ":selected",
             style: { "border-width": 4, "border-color": "#a7ebfb" },
           },
@@ -127,6 +149,61 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
     }
   }
   const selected = topology?.nodes.find((node) => node.id === selectedId);
+  async function refreshMap() {
+    const [nextTopology, nextAnnotations] = await Promise.all([
+      api<Topology>("/topology"),
+      api<LinkAnnotation[]>("/topology/annotations"),
+    ]);
+    setTopology(nextTopology);
+    setAnnotations(nextAnnotations);
+  }
+  async function addAnnotation(event: React.FormEvent) {
+    event.preventDefault();
+    setActionError("");
+    try {
+      await api("/topology/annotations", {
+        method: "POST",
+        body: JSON.stringify({
+          source_id: sourceId,
+          target_id: targetId,
+          label,
+          note,
+        }),
+      });
+      setLabel("");
+      setNote("");
+      await refreshMap();
+    } catch (cause) {
+      setActionError(
+        (cause as ApiError)?.message || "Unable to save annotation.",
+      );
+    }
+  }
+  async function removeAnnotation(id: number) {
+    setActionError("");
+    try {
+      await api(`/topology/annotations/${id}`, { method: "DELETE" });
+      await refreshMap();
+    } catch (cause) {
+      setActionError(
+        (cause as ApiError)?.message || "Unable to remove annotation.",
+      );
+    }
+  }
+  async function compare() {
+    setActionError("");
+    try {
+      setComparison(
+        await api<Comparison>(
+          `/devices/compare?left_id=${sourceId}&right_id=${targetId}`,
+        ),
+      );
+    } catch (cause) {
+      setActionError(
+        (cause as ApiError)?.message || "Unable to compare devices.",
+      );
+    }
+  }
   if (error)
     return (
       <section>
@@ -155,6 +232,10 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
       <div className="map-legend">
         <span className="legend-line" /> Inferred subnet grouping{" "}
         <span className="legend-note">· Physical path unknown</span>
+        <span className="legend-note">
+          {" "}
+          · Solid green: owner annotation, unverified
+        </span>
       </div>
       {deviceNodes.length === 0 ? (
         <div className="panel empty-panel">
@@ -219,6 +300,141 @@ export function NetworkMap({ onConfigure }: { onConfigure: () => void }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+      {deviceNodes.length > 1 && (
+        <div className="panel investigation-panel">
+          <h2>Investigate devices</h2>
+          <p className="helper">
+            Compare saved observations or annotate a relationship you know. An
+            annotation is an owner claim, not a verified physical link.
+          </p>
+          {actionError && (
+            <p className="error" role="alert">
+              {actionError}
+            </p>
+          )}
+          <div className="investigation-grid">
+            <label>
+              First device
+              <select
+                value={sourceId}
+                onChange={(event) => {
+                  setSourceId(Number(event.target.value));
+                  setComparison(null);
+                }}
+              >
+                <option value={0}>Select device</option>
+                {deviceNodes.map((node) => (
+                  <option key={node.id} value={node.device_id}>
+                    {node.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Second device
+              <select
+                value={targetId}
+                onChange={(event) => {
+                  setTargetId(Number(event.target.value));
+                  setComparison(null);
+                }}
+              >
+                <option value={0}>Select device</option>
+                {deviceNodes.map((node) => (
+                  <option key={node.id} value={node.device_id}>
+                    {node.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button
+            className="secondary"
+            disabled={!sourceId || !targetId || sourceId === targetId}
+            onClick={compare}
+          >
+            Compare observations
+          </button>
+          {comparison && (
+            <div className="investigation-grid" aria-label="Device comparison">
+              {[comparison.left, comparison.right].map((device) => (
+                <div key={device.id}>
+                  <h3>{device.display_name}</h3>
+                  <p>
+                    Status: {device.status} · Identity:{" "}
+                    {device.identity_confidence}
+                  </p>
+                  <p>Last observed: {localTime(device.last_observed_at)}</p>
+                  <p>
+                    Addresses:{" "}
+                    {device.addresses.map((address) => address.ip).join(", ") ||
+                      "None"}
+                  </p>
+                  <p>
+                    Latest service states:{" "}
+                    {device.services
+                      .map(
+                        (service) =>
+                          `${service.port}/${service.protocol} ${service.state} (${localTime(service.observed_at)})`,
+                      )
+                      .join(", ") || "None"}
+                  </p>
+                </div>
+              ))}
+              <p className="helper">{comparison.provenance}</p>
+            </div>
+          )}
+          <form onSubmit={addAnnotation}>
+            <label>
+              Relationship label
+              <input
+                maxLength={100}
+                required
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
+                placeholder="e.g. connected through switch"
+              />
+            </label>
+            <label>
+              Owner note
+              <input
+                maxLength={500}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </label>
+            <button
+              className="primary"
+              disabled={!sourceId || !targetId || sourceId === targetId}
+            >
+              Save owner annotation
+            </button>
+          </form>
+          <h3>Saved annotations</h3>
+          {annotations.length ? (
+            <ul className="evidence-list">
+              {annotations.map((link) => (
+                <li key={link.id}>
+                  <strong>{link.label}</strong>
+                  <span>
+                    Devices #{link.source_id} and #{link.target_id} · Owner
+                    supplied, unverified
+                  </span>
+                  {link.note && <p>{link.note}</p>}
+                  <button
+                    className="text-button"
+                    onClick={() => removeAnnotation(link.id)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty">No owner annotations saved.</p>
+          )}
         </div>
       )}
     </section>

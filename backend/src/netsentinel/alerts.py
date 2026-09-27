@@ -195,7 +195,12 @@ def resolve(alert_id: int, db: Db, user: CurrentSession, _csrf: Csrf) -> dict:
 
 @events_router.get("")
 def list_events(
-    db: Db, _user: CurrentSession, limit: int = 50, offset: int = 0, device_id: int | None = None
+    db: Db,
+    _user: CurrentSession,
+    limit: int = 50,
+    offset: int = 0,
+    device_id: int | None = None,
+    event_type: str | None = None,
 ) -> dict:
     if limit < 1 or limit > 100 or offset < 0 or (device_id is not None and device_id < 1):
         error("invalid_pagination", "Use limit 1–100 and nonnegative offset")
@@ -204,6 +209,11 @@ def list_events(
     if device_id is not None:
         count = count.where(Event.device_id == device_id)
         query = query.where(Event.device_id == device_id)
+    if event_type is not None:
+        if len(event_type) > 60 or not event_type.replace("_", "").isalnum():
+            error("invalid_filter", "Invalid event type")
+        count = count.where(Event.event_type == event_type)
+        query = query.where(Event.event_type == event_type)
     total = db.scalar(count) or 0
     rows = db.scalars(query.limit(limit).offset(offset))
     return {

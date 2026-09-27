@@ -17,6 +17,7 @@ from netsentinel import (
     check_rules,
     identity,
     inventory,
+    investigation,
     monitoring,
     profiles,
     scans,
@@ -92,8 +93,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(scopes.router)
     app.include_router(profiles.router)
     app.include_router(scans.router)
-    app.include_router(inventory.router)
     app.include_router(identity.router)
+    app.include_router(investigation.router)
+    app.include_router(inventory.router)
     app.include_router(check_rules.devices_router)
     app.include_router(check_rules.rules_router)
     app.include_router(agents.devices_router)

@@ -4,12 +4,17 @@ import { api, type ApiError, type Page, type TimelineEvent } from "../../api";
 export function Timeline({ onDevice }: { onDevice: (id: number) => void }) {
   const [page, setPage] = React.useState<Page<TimelineEvent> | null>(null);
   const [offset, setOffset] = React.useState(0);
+  const [deviceFilter, setDeviceFilter] = React.useState("");
+  const [typeFilter, setTypeFilter] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   React.useEffect(() => {
     let active = true;
     setLoading(true);
-    api<Page<TimelineEvent>>(`/events?limit=30&offset=${offset}`)
+    const params = new URLSearchParams({ limit: "30", offset: String(offset) });
+    if (deviceFilter) params.set("device_id", deviceFilter);
+    if (typeFilter) params.set("event_type", typeFilter);
+    api<Page<TimelineEvent>>(`/events?${params}`)
       .then((data) => {
         if (active) setPage(data);
       })
@@ -23,7 +28,7 @@ export function Timeline({ onDevice }: { onDevice: (id: number) => void }) {
     return () => {
       active = false;
     };
-  }, [offset]);
+  }, [offset, deviceFilter, typeFilter]);
   return (
     <section>
       <div className="page-heading">
@@ -32,6 +37,43 @@ export function Timeline({ onDevice }: { onDevice: (id: number) => void }) {
         <p>Scans, device changes, alerts, and owner actions in time order.</p>
       </div>
       <div className="panel">
+        <div className="investigation-grid">
+          <label>
+            Device ID
+            <input
+              type="number"
+              min="1"
+              value={deviceFilter}
+              onChange={(event) => {
+                setDeviceFilter(event.target.value);
+                setOffset(0);
+              }}
+              placeholder="All devices"
+            />
+          </label>
+          <label>
+            Event type
+            <select
+              value={typeFilter}
+              onChange={(event) => {
+                setTypeFilter(event.target.value);
+                setOffset(0);
+              }}
+            >
+              <option value="">All events</option>
+              <option value="scan_completed">Scan completed</option>
+              <option value="alert_triggered">Alert triggered</option>
+              <option value="alert_resolved">Alert resolved</option>
+              <option value="device_updated">Device updated</option>
+              <option value="identity_merged">Identity merged</option>
+              <option value="identity_split">Identity split</option>
+              <option value="topology_link_added">Topology link added</option>
+              <option value="topology_link_removed">
+                Topology link removed
+              </option>
+            </select>
+          </label>
+        </div>
         {error && (
           <p className="error" role="alert">
             {error}

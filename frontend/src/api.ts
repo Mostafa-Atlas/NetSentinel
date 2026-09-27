@@ -192,13 +192,36 @@ export type TopologyNode = {
 export type TopologyLink = {
   source: string;
   target: string;
-  kind: "inferred";
+  kind: "inferred" | "owner_annotation";
   provenance: string;
+  label?: string;
+  annotation_id?: string;
 };
 export type Topology = {
   nodes: TopologyNode[];
   links: TopologyLink[];
-  legend: { inferred: string };
+  legend: { inferred: string; owner_annotation: string };
+};
+export type LinkAnnotation = {
+  id: number;
+  source_id: number;
+  target_id: number;
+  label: string;
+  note: string;
+  provenance: "owner_supplied_unverified";
+  created_at: string;
+  updated_at: string;
+};
+export type ComparedDevice = Device & {
+  services: Pick<
+    ServiceObservation,
+    "port" | "protocol" | "state" | "observed_at" | "ip"
+  >[];
+};
+export type Comparison = {
+  left: ComparedDevice;
+  right: ComparedDevice;
+  provenance: string;
 };
 
 function csrfToken(): string {

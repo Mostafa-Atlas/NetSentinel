@@ -37,6 +37,7 @@ def test_fresh_migrations(tmp_path: Path) -> None:
         "agent_enrollments",
         "agent_nonces",
         "agent_reports",
+        "topology_links",
     }.issubset(tables)
     with closing(sqlite3.connect(database)) as db:
         db.execute(
