@@ -222,3 +222,25 @@ Commits and push status: implementation checkpoint `3b48c24` pushed to `origin/m
 
 ### Next
 - P11 — optional authenticated outbound host agent and replay protection.
+
+## Period P11 — Host agent
+Status: complete locally; Phase 2 continues with P12
+Human work time: not recorded
+Commits and push status: implementation checkpoint `bc73b83` pushed to `origin/main`; final P11 documentation commit and remote verification are reported in the session handoff.
+
+### Delivered
+- Owner-created, one-device agent enrollments with one-time high-entropy tokens, hashed storage, expiration, revocation, and audit events.
+- HTTPS-required remote report endpoint with bounded payload, timestamp and nonce replay rejection, and a standalone outbound-only one-shot host script. Optional Docker names/states are off by default.
+- Device-detail enrollment, one-time token display, revocation, and recent host/Docker reports.
+
+### Checks
+- Backend Ruff format/lint, mypy, and pytest pass (35 tests), including remote HTTP rejection, replay, scope binding, revocation, payload bounds, and migration.
+- Frontend Prettier, ESLint, Vitest (11 tests), and production build pass. A mobile-hidden token panel was corrected before the checkpoint.
+- No real host-agent deployment or trusted reverse-proxy flow was performed; these remain field checks.
+
+### Decisions and limitations
+- The agent sends one report per invocation and can be scheduled by the host owner; the server does not initiate contact or issue commands.
+- Reports authenticate the enrollment credential, not the physical host. Remote proxy setup must present a trusted HTTPS scheme to the app.
+
+### Next
+- P12 — device comparison, investigation, and saved topology annotations.

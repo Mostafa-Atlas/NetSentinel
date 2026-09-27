@@ -8,6 +8,8 @@ For a single-container installation, run `docker compose up -d --build` from the
 
 Create the only administrator on first load. In Settings, approve a private IPv4 range you administer. Discovery and automatic monitoring stay off until those actions. If using a trusted HTTPS reverse proxy, set `NETSENTINEL_SECURE_COOKIES=true` and configure the proxy to preserve secure cookie handling.
 
+For the optional host agent, enroll a specific device in its detail screen and copy the one-time token. Store it in `NETSENTINEL_AGENT_TOKEN` on that host; do not put it in a command-line argument or commit it. Run `python backend/scripts/host_agent.py --server https://your-trusted-origin` for one outbound report, then schedule that command with the host's scheduler if desired. Use `--include-docker` only after deciding to report container names and states. A local same-host installation may use `--server http://127.0.0.1:8000`. Remote reporting requires a trusted HTTPS endpoint and an application server configured to recognize the trusted proxy's HTTPS scheme; the API deliberately ignores a client-supplied `X-Forwarded-Proto` header. The host clock must be within five minutes of the server. Revoke a credential in device detail if it is no longer needed.
+
 ## Back up
 
 The helper uses SQLite's online backup API, so a backup can be taken while the app runs. It verifies the resulting file with `PRAGMA integrity_check` and refuses to overwrite an existing backup unless explicitly instructed. Keep backup files private; they contain account hashes, network addresses, notes, and history.
