@@ -244,3 +244,21 @@ Commits and push status: implementation checkpoint `bc73b83` pushed to `origin/m
 
 ### Next
 - P12 — device comparison, investigation, and saved topology annotations.
+
+## Period P12 — Investigation
+Status: complete locally; Phase 2 continues with P13
+Human work time: not recorded
+Commits and push status: implementation checkpoint `01f79fd` pushed to `origin/main`; final P12 documentation commit and remote verification are reported in the session handoff.
+
+### Delivered
+- Same-profile two-device comparison of saved reachability, addresses, and latest per-port service states with timestamps.
+- Owner-supplied, unverified topology link labels and notes, visible separately from inferred subnet membership in the graph and keyboard-accessible text list.
+- Device ID and event-type Timeline filtering. Identity merge now preserves Phase 2 records and refuses conflicting check-rule ports; split refuses ambiguous device-scoped configuration.
+
+### Checks
+- Backend Ruff lint/format, mypy, and pytest pass (36 tests), including migration, comparison, annotation validation, authentication, and CSRF.
+- Frontend Prettier, ESLint, Vitest (11 tests), and production build pass.
+- No real LAN or physical-link verification was run; owner annotations remain claims.
+
+### Next
+- P13 — optional notifications, retention controls, load checks, backup/restore drill, and release review.

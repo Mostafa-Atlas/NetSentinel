@@ -6,6 +6,7 @@
 - P9: Added optional passive mDNS and SSDP listening during approved scans. Bounded, in-scope advertisements are stored as unverified hints with source and time, and shown in device detail. The feature is off by default and needs renewed policy approval to enable.
 - P10: Added per-device TCP service rules evaluated from approved scan results, consecutive-miss thresholds, quiet and maintenance windows, check history, and a device-detail rule editor.
 - P11: Added optional, scoped host-agent enrollment with one-time credentials, HTTPS-only remote reports, nonce and timestamp replay checks, revocation, bounded host/Docker status, and device-detail report history.
+- P12: Added two-device observation comparison, filterable audit timeline, and owner-supplied topology annotations labeled as unverified. Identity merges preserve related Phase 2 records.
 - P1: Created the backend and frontend application shells, health checks, migration scaffold, and local setup instructions.
 - P2: Added first-admin setup, local sessions, CSRF-protected changes, approved private network scopes, and setup/settings screens.
 - P3: Added queued bounded discovery, optional OS neighbor and ICMP hints, TCP connect observations, scan status polling, and persisted evidence.
