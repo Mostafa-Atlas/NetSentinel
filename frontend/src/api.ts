@@ -117,6 +117,23 @@ export type MonitorCheck = {
   state: "reachable" | "unreachable" | "unknown";
   suppressed: boolean;
 };
+export type AgentEnrollment = {
+  id: number;
+  device_id: number;
+  name: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+};
+export type AgentReport = {
+  id: number;
+  device_id: number;
+  received_at: string;
+  hostname: string;
+  os_name: string;
+  load_1m: number | null;
+  containers: { name: string; state: "running" | "stopped" | "unknown" }[];
+};
 export type MonitoringSettings = {
   schedule_enabled: boolean;
   interval_minutes: number;

@@ -158,6 +158,19 @@ p {
 .auth-note span {
   color: var(--muted);
 }
+.agent-token {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #28536a;
+  border-radius: 12px;
+  background: #102d42;
+  overflow-wrap: anywhere;
+}
+.agent-token span {
+  color: var(--muted);
+}
 .auth-panel {
   padding: clamp(2rem, 7vw, 6rem);
   display: flex;

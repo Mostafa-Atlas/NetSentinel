@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import sessionmaker
 
 from netsentinel import (
+    agents,
     alerts,
     auth,
     check_rules,
@@ -95,6 +96,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(identity.router)
     app.include_router(check_rules.devices_router)
     app.include_router(check_rules.rules_router)
+    app.include_router(agents.devices_router)
+    app.include_router(agents.enrollments_router)
+    app.include_router(agents.reports_router)
     app.include_router(monitoring.router)
     app.include_router(views.router)
     app.include_router(alerts.alerts_router)

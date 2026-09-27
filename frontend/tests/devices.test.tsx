@@ -61,61 +61,79 @@ test("inventory opens evidence and saves an owner label", async () => {
                         }
                       : url.endsWith("/devices/1/check-rules")
                         ? []
-                        : url.includes("/devices/1/hints?")
+                        : url.endsWith("/devices/1/agent-enrollments") &&
+                            options?.method === "POST"
                           ? {
-                              items: [
-                                {
-                                  id: 1,
-                                  scan_run_id: 1,
-                                  ip: "10.0.0.7",
-                                  source: "mdns",
-                                  kind: "hostname",
-                                  value: "desk.local",
-                                  confidence: "unverified_advertisement",
-                                  observed_at: "2026-09-27T00:00:00Z",
-                                },
-                              ],
-                              total: 1,
+                              id: 1,
+                              device_id: 1,
+                              name: "Desk agent",
+                              token: "one-time-test-token",
+                              created_at: "2026-09-27T00:00:00Z",
+                              expires_at: "2026-12-27T00:00:00Z",
+                              revoked_at: null,
                             }
-                          : url.endsWith("/devices/1/observations?limit=30")
-                            ? {
-                                items: [
-                                  {
-                                    id: 1,
-                                    scan_run_id: 1,
-                                    observed_at: "2026-09-27T00:00:00Z",
-                                    source: "tcp",
-                                    reachable: true,
-                                    latency_ms: 4,
-                                    raw_summary: "Mocked connect",
-                                  },
-                                ],
-                                total: 1,
-                              }
-                            : url.includes("/services?")
+                          : url.endsWith("/devices/1/agent-enrollments")
+                            ? []
+                            : url.includes("/devices/1/agent-reports?")
                               ? { items: [], total: 0 }
-                              : url.includes("/events?device_id=1")
+                              : url.includes("/devices/1/hints?")
                                 ? {
                                     items: [
                                       {
-                                        id: 5,
-                                        summary: "New device observed",
-                                        event_type: "alert_triggered",
-                                        actor: "system",
-                                        occurred_at: "2026-09-27T00:00:00Z",
-                                        evidence_ref: "alert:1",
+                                        id: 1,
+                                        scan_run_id: 1,
+                                        ip: "10.0.0.7",
+                                        source: "mdns",
+                                        kind: "hostname",
+                                        value: "desk.local",
+                                        confidence: "unverified_advertisement",
+                                        observed_at: "2026-09-27T00:00:00Z",
                                       },
                                     ],
                                     total: 1,
                                   }
-                                : url.endsWith("/devices/1") &&
-                                    options?.method === "PATCH"
+                                : url.endsWith(
+                                      "/devices/1/observations?limit=30",
+                                    )
                                   ? {
-                                      ...device,
-                                      display_name: "Desk",
-                                      known_state: "known",
+                                      items: [
+                                        {
+                                          id: 1,
+                                          scan_run_id: 1,
+                                          observed_at: "2026-09-27T00:00:00Z",
+                                          source: "tcp",
+                                          reachable: true,
+                                          latency_ms: 4,
+                                          raw_summary: "Mocked connect",
+                                        },
+                                      ],
+                                      total: 1,
                                     }
-                                  : device,
+                                  : url.includes("/services?")
+                                    ? { items: [], total: 0 }
+                                    : url.includes("/events?device_id=1")
+                                      ? {
+                                          items: [
+                                            {
+                                              id: 5,
+                                              summary: "New device observed",
+                                              event_type: "alert_triggered",
+                                              actor: "system",
+                                              occurred_at:
+                                                "2026-09-27T00:00:00Z",
+                                              evidence_ref: "alert:1",
+                                            },
+                                          ],
+                                          total: 1,
+                                        }
+                                      : url.endsWith("/devices/1") &&
+                                          options?.method === "PATCH"
+                                        ? {
+                                            ...device,
+                                            display_name: "Desk",
+                                            known_state: "known",
+                                          }
+                                        : device,
       }),
     );
   vi.stubGlobal("fetch", fetchMock);
@@ -130,6 +148,7 @@ test("inventory opens evidence and saves an owner label", async () => {
   expect(screen.getByText(/MDNS · unverified/)).toBeTruthy();
   expect(screen.getByText("Device events")).toBeTruthy();
   expect(screen.getByText("Service check rules")).toBeTruthy();
+  expect(screen.getByText("Optional host agent")).toBeTruthy();
   expect(screen.getByText("New device observed")).toBeTruthy();
   fireEvent.change(screen.getByLabelText("Alerts"), {
     target: { value: "open" },
@@ -152,4 +171,11 @@ test("inventory opens evidence and saves an owner label", async () => {
   ).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Add check rule" }));
   expect(await screen.findByText(/TCP 80 rule added/)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Agent name"), {
+    target: { value: "Desk agent" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Create agent credential" }),
+  );
+  expect(await screen.findByText("one-time-test-token")).toBeTruthy();
 });

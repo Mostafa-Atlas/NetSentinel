@@ -180,6 +180,42 @@ class MonitorCheck(Base):
     suppressed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class AgentEnrollment(Base):
+    __tablename__ = "agent_enrollments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AgentNonce(Base):
+    __tablename__ = "agent_nonces"
+    __table_args__ = (UniqueConstraint("enrollment_id", "nonce", name="uq_agent_nonce"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enrollment_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_enrollments.id", ondelete="CASCADE"), index=True
+    )
+    nonce: Mapped[str] = mapped_column(String(64))
+    used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AgentReport(Base):
+    __tablename__ = "agent_reports"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enrollment_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_enrollments.id", ondelete="CASCADE"), index=True
+    )
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    hostname: Mapped[str] = mapped_column(String(255))
+    os_name: Mapped[str] = mapped_column(String(100))
+    load_1m: Mapped[float | None] = mapped_column(Float)
+    containers_json: Mapped[str] = mapped_column(Text, default="[]")
+
+
 class Alert(Base):
     __tablename__ = "alerts"
     __table_args__ = (

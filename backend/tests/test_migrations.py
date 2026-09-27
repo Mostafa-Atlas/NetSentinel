@@ -34,6 +34,9 @@ def test_fresh_migrations(tmp_path: Path) -> None:
         "device_hints",
         "monitor_rules",
         "monitor_checks",
+        "agent_enrollments",
+        "agent_nonces",
+        "agent_reports",
     }.issubset(tables)
     with closing(sqlite3.connect(database)) as db:
         db.execute(
