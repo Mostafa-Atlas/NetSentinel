@@ -12,6 +12,7 @@ import {
   api,
   type ApiError,
   type Device,
+  type IdentityReview,
   type Observation,
   type Page,
   type ServiceObservation,
@@ -45,6 +46,7 @@ export function Devices({
   const [observations, setObservations] = React.useState<Observation[]>([]);
   const [services, setServices] = React.useState<ServiceObservation[]>([]);
   const [events, setEvents] = React.useState<TimelineEvent[]>([]);
+  const [identity, setIdentity] = React.useState<IdentityReview | null>(null);
   const [name, setName] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [knownState, setKnownState] = React.useState<"known" | "unknown">(
@@ -72,6 +74,7 @@ export function Devices({
   React.useEffect(() => {
     if (selectedId === null) {
       setDetail(null);
+      setIdentity(null);
       return;
     }
     Promise.all([
@@ -79,8 +82,9 @@ export function Devices({
       api<Page<Observation>>(`/devices/${selectedId}/observations?limit=30`),
       api<Page<ServiceObservation>>(`/devices/${selectedId}/services?limit=30`),
       api<Page<TimelineEvent>>(`/events?device_id=${selectedId}&limit=10`),
+      api<IdentityReview>(`/devices/${selectedId}/identity-review`),
     ])
-      .then(([device, observationsPage, servicesPage, eventsPage]) => {
+      .then(([device, observationsPage, servicesPage, eventsPage, review]) => {
         setDetail(device);
         setName(device.display_name);
         setNotes(device.notes);
@@ -88,6 +92,7 @@ export function Devices({
         setObservations(observationsPage.items);
         setServices(servicesPage.items);
         setEvents(eventsPage.items);
+        setIdentity(review);
       })
       .catch((cause) => setError(errorMessage(cause)));
   }, [selectedId]);
@@ -114,6 +119,56 @@ export function Devices({
       setError(errorMessage(cause));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function merge(sourceId: number) {
+    if (
+      !detail ||
+      !window.confirm(
+        `Merge device #${sourceId} into #${detail.id}? Review address evidence first. This changes the inventory identity.`,
+      )
+    )
+      return;
+    setError("");
+    try {
+      await api(`/devices/${detail.id}/merge`, {
+        method: "POST",
+        body: JSON.stringify({ source_id: sourceId, confirmed: true }),
+      });
+      setNotice("Identity merge recorded.");
+      setIdentity(
+        await api<IdentityReview>(`/devices/${detail.id}/identity-review`),
+      );
+      setDetail(await api<Device>(`/devices/${detail.id}`));
+      load();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  }
+
+  async function split(addressId: number, ip: string) {
+    if (
+      !detail ||
+      !window.confirm(
+        `Split ${ip} into a separate provisional device? Historical evidence must identify its address.`,
+      )
+    )
+      return;
+    setError("");
+    try {
+      const result = await api<{ device_id: number }>(
+        `/devices/${detail.id}/split`,
+        {
+          method: "POST",
+          body: JSON.stringify({ address_id: addressId, confirmed: true }),
+        },
+      );
+      setNotice("Address split recorded. Review the new device.");
+      setSelectedId(result.device_id);
+      load();
+    } catch (cause) {
+      setError(errorMessage(cause));
     }
   }
 
@@ -255,6 +310,53 @@ export function Devices({
               Close details
             </button>
           </div>
+          <section className="history-section">
+            <h3>Identity review</h3>
+            <p className="muted">
+              An IP match is only a review hint. Different observed MACs cannot
+              be merged.
+            </p>
+            {identity?.candidates.length ? (
+              <ul className="evidence-list">
+                {identity.candidates.map((candidate) => (
+                  <li key={candidate.id}>
+                    <strong>
+                      {candidate.display_name} · #{candidate.id}
+                    </strong>
+                    <span>
+                      Shared IPs: {candidate.shared_ips.join(", ") || "none"} ·
+                      Shared MACs: {candidate.shared_macs.join(", ") || "none"}
+                    </span>
+                    <button
+                      className="secondary"
+                      onClick={() => merge(candidate.id)}
+                    >
+                      Merge after review
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty">No identity candidates found.</p>
+            )}
+            {identity && identity.addresses.length > 1 && (
+              <ul className="evidence-list">
+                {identity.addresses.map((address) => (
+                  <li key={address.id}>
+                    <span>
+                      {address.ip} · {address.mac || "MAC unavailable"}
+                    </span>
+                    <button
+                      className="secondary"
+                      onClick={() => split(address.id, address.ip)}
+                    >
+                      Split address
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           <div className="split-grid">
             <section>
               <h3>Owner details</h3>

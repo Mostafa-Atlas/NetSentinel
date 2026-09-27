@@ -6,6 +6,7 @@ export type ApiError = {
 };
 export type Scope = {
   id: number;
+  profile_id: number | null;
   name: string;
   cidr: string;
   enabled: boolean;
@@ -13,6 +14,24 @@ export type Scope = {
   max_concurrency: number;
   connect_timeout_ms: number;
   ports: number[];
+};
+export type NetworkProfile = {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+  scope_count: number;
+};
+export type IdentityReview = {
+  device_id: number;
+  candidates: {
+    id: number;
+    display_name: string;
+    shared_ips: string[];
+    shared_macs: string[];
+    warning: string;
+  }[];
+  addresses: { id: number; ip: string; mac: string | null }[];
 };
 export type Scan = {
   id: number;
@@ -39,6 +58,7 @@ export type DeviceAddress = {
 };
 export type Device = {
   id: number;
+  profile_id: number | null;
   display_name: string;
   identity_confidence: "observed_mac" | "provisional";
   known_state: "known" | "unknown";

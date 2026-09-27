@@ -1,6 +1,17 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from netsentinel.db import Base
@@ -30,11 +41,21 @@ class Session(Base):
     user: Mapped[User] = relationship()
 
 
+class NetworkProfile(Base):
+    __tablename__ = "network_profiles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    description: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class NetworkScope(Base):
     __tablename__ = "network_scopes"
+    __table_args__ = (UniqueConstraint("profile_id", "cidr", name="uq_scope_profile_cidr"),)
     id: Mapped[int] = mapped_column(primary_key=True)
+    profile_id: Mapped[int | None] = mapped_column(ForeignKey("network_profiles.id"), index=True)
     name: Mapped[str] = mapped_column(String(100))
-    cidr: Mapped[str] = mapped_column(String(32), unique=True)
+    cidr: Mapped[str] = mapped_column(String(32))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     max_concurrency: Mapped[int] = mapped_column(Integer, default=32)
@@ -65,6 +86,7 @@ class ScanRun(Base):
 class Device(Base):
     __tablename__ = "devices"
     id: Mapped[int] = mapped_column(primary_key=True)
+    profile_id: Mapped[int | None] = mapped_column(ForeignKey("network_profiles.id"), index=True)
     display_name: Mapped[str] = mapped_column(String(100))
     identity_confidence: Mapped[str] = mapped_column(String(20), default="provisional")
     known_state: Mapped[str] = mapped_column(String(20), default="unknown")
@@ -95,6 +117,7 @@ class Observation(Base):
         DateTime(timezone=True), default=utcnow, index=True
     )
     source: Mapped[str] = mapped_column(String(50))
+    ip: Mapped[str | None] = mapped_column(String(45))
     reachable: Mapped[bool | None] = mapped_column(Boolean)
     latency_ms: Mapped[float | None] = mapped_column(Float)
     raw_summary: Mapped[str] = mapped_column(String(255))

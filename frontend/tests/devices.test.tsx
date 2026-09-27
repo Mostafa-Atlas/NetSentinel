@@ -42,45 +42,53 @@ test("inventory opens evidence and saves an owner label", async () => {
                 ? { username: "owner" }
                 : url.includes("/devices?")
                   ? { items: [device], total: 1, limit: 100, offset: 0 }
-                  : url.endsWith("/devices/1/observations?limit=30")
+                  : url.endsWith("/devices/1/identity-review")
                     ? {
-                        items: [
-                          {
-                            id: 1,
-                            scan_run_id: 1,
-                            observed_at: "2026-09-27T00:00:00Z",
-                            source: "tcp",
-                            reachable: true,
-                            latency_ms: 4,
-                            raw_summary: "Mocked connect",
-                          },
+                        device_id: 1,
+                        candidates: [],
+                        addresses: [
+                          { id: 1, ip: "10.0.0.7", mac: "aa:bb:cc:dd:ee:ff" },
                         ],
-                        total: 1,
                       }
-                    : url.includes("/services?")
-                      ? { items: [], total: 0 }
-                      : url.includes("/events?device_id=1")
-                        ? {
-                            items: [
-                              {
-                                id: 5,
-                                summary: "New device observed",
-                                event_type: "alert_triggered",
-                                actor: "system",
-                                occurred_at: "2026-09-27T00:00:00Z",
-                                evidence_ref: "alert:1",
-                              },
-                            ],
-                            total: 1,
-                          }
-                        : url.endsWith("/devices/1") &&
-                            options?.method === "PATCH"
+                    : url.endsWith("/devices/1/observations?limit=30")
+                      ? {
+                          items: [
+                            {
+                              id: 1,
+                              scan_run_id: 1,
+                              observed_at: "2026-09-27T00:00:00Z",
+                              source: "tcp",
+                              reachable: true,
+                              latency_ms: 4,
+                              raw_summary: "Mocked connect",
+                            },
+                          ],
+                          total: 1,
+                        }
+                      : url.includes("/services?")
+                        ? { items: [], total: 0 }
+                        : url.includes("/events?device_id=1")
                           ? {
-                              ...device,
-                              display_name: "Desk",
-                              known_state: "known",
+                              items: [
+                                {
+                                  id: 5,
+                                  summary: "New device observed",
+                                  event_type: "alert_triggered",
+                                  actor: "system",
+                                  occurred_at: "2026-09-27T00:00:00Z",
+                                  evidence_ref: "alert:1",
+                                },
+                              ],
+                              total: 1,
                             }
-                          : device,
+                          : url.endsWith("/devices/1") &&
+                              options?.method === "PATCH"
+                            ? {
+                                ...device,
+                                display_name: "Desk",
+                                known_state: "known",
+                              }
+                            : device,
       }),
     );
   vi.stubGlobal("fetch", fetchMock);

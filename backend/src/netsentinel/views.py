@@ -94,7 +94,9 @@ def topology(db: Db, _user: CurrentSession) -> dict:
         matches = []
         for address in summary["addresses"]:
             for scope in scopes:
-                if IPv4Address(address["ip"]) in IPv4Network(scope.cidr):
+                if scope.profile_id == device.profile_id and IPv4Address(
+                    address["ip"]
+                ) in IPv4Network(scope.cidr):
                     matches.append(scope)
         if matches:
             scope = max(matches, key=lambda item: IPv4Network(item.cidr).prefixlen)

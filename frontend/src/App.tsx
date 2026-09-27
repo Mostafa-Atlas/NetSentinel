@@ -1,6 +1,14 @@
 import React from "react";
-import { api, type ApiError, type Page, type Scan, type Scope } from "./api";
+import {
+  api,
+  type ApiError,
+  type NetworkProfile,
+  type Page,
+  type Scan,
+  type Scope,
+} from "./api";
 import { MonitoringSettings } from "./features/settings/MonitoringSettings";
+import { Profiles } from "./features/settings/Profiles";
 import { ScopePolicy } from "./features/settings/ScopePolicy";
 
 type User = { username: string };
@@ -137,6 +145,8 @@ function AuthForm({
 
 function ScopeSettings() {
   const [scopes, setScopes] = React.useState<Scope[]>([]);
+  const [profiles, setProfiles] = React.useState<NetworkProfile[]>([]);
+  const [profileId, setProfileId] = React.useState(1);
   const [latestScan, setLatestScan] = React.useState<Scan | null>(null);
   const [editingScopeId, setEditingScopeId] = React.useState<number | null>(
     null,
@@ -148,8 +158,11 @@ function ScopeSettings() {
   const [error, setError] = React.useState("");
   const [notice, setNotice] = React.useState("");
   const reload = React.useCallback(() => {
-    api<Scope[]>("/scopes")
-      .then(setScopes)
+    Promise.all([api<Scope[]>("/scopes"), api<NetworkProfile[]>("/profiles")])
+      .then(([nextScopes, nextProfiles]) => {
+        setScopes(nextScopes);
+        setProfiles(nextProfiles);
+      })
       .catch((cause) => setError(messageOf(cause)));
   }, []);
   React.useEffect(reload, [reload]);
@@ -176,7 +189,7 @@ function ScopeSettings() {
     try {
       await api<Scope>("/scopes", {
         method: "POST",
-        body: JSON.stringify({ name, cidr, approved }),
+        body: JSON.stringify({ name, cidr, profile_id: profileId, approved }),
       });
       setNotice("Approved range saved. Discovery is ready to run.");
       setCidr("");
@@ -242,6 +255,18 @@ function ScopeSettings() {
         <div className="panel">
           <h2>Add approved range</h2>
           <form onSubmit={add}>
+            <label htmlFor="scope-profile">Network profile</label>
+            <select
+              id="scope-profile"
+              value={profileId}
+              onChange={(event) => setProfileId(Number(event.target.value))}
+            >
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
             <label htmlFor="scope-name">Name</label>
             <input
               id="scope-name"
@@ -302,7 +327,10 @@ function ScopeSettings() {
                     <strong>{scope.name}</strong>
                     <code>{scope.cidr}</code>
                     <small>
-                      {scope.enabled ? "Enabled" : "Paused"} ·{" "}
+                      {profiles.find(
+                        (profile) => profile.id === scope.profile_id,
+                      )?.name ?? "Default"}{" "}
+                      · {scope.enabled ? "Enabled" : "Paused"} ·{" "}
                       {scope.ports.length} TCP ports · {scope.max_concurrency}{" "}
                       concurrent probes
                     </small>
@@ -348,6 +376,7 @@ function ScopeSettings() {
           )}
         </div>
       </div>
+      <Profiles profiles={profiles} onReload={reload} />
       <div className="panel scan-panel">
         <h2>Latest discovery</h2>
         {latestScan ? (

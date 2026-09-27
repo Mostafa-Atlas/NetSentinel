@@ -110,7 +110,8 @@ def persist_result(db, run: ScanRun, result: ProbeResult) -> int | None:
     if result.reachable is not True and not result.mac:
         return None
     now = utcnow()
-    device = reconcile_device(db, result, now)
+    scope = db.get(NetworkScope, run.scope_id)
+    device = reconcile_device(db, result, now, scope.profile_id if scope else None)
     prior = db.scalar(select(Observation.id).where(Observation.device_id == device.id).limit(1))
     prior_response = db.scalar(
         select(Observation.id)
@@ -125,6 +126,7 @@ def persist_result(db, run: ScanRun, result: ProbeResult) -> int | None:
         scan_run_id=run.id,
         observed_at=now,
         source=result.source,
+        ip=result.ip,
         reachable=reachable,
         latency_ms=result.latency_ms,
         raw_summary=summary,
@@ -232,7 +234,13 @@ async def execute_scan(app, run_id: int) -> None:
                     observed_ids.add(device_id)
             results_by_ip = {result.ip: result for result in results}
             missed_ids: set[int] = set()
-            for address in db.scalars(select(DeviceAddress)):
+            for address in db.scalars(
+                select(DeviceAddress)
+                .join(Device, Device.id == DeviceAddress.device_id)
+                .where(Device.profile_id == scope.profile_id)
+            ):
+                if IPv4Address(address.ip) not in network:
+                    continue
                 result = results_by_ip.get(address.ip)
                 if (
                     result is None
@@ -248,6 +256,7 @@ async def execute_scan(app, run_id: int) -> None:
                     scan_run_id=run.id,
                     observed_at=now,
                     source="bounded_probe",
+                    ip=address.ip,
                     reachable=False,
                     latency_ms=None,
                     raw_summary="No ICMP or configured TCP port answered",

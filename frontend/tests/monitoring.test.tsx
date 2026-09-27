@@ -14,6 +14,7 @@ test("scheduled monitoring and a port policy require explicit opt-in", async () 
     cidr: "192.168.1.0/24",
     enabled: true,
     approved_at: "2026-09-27T00:00:00Z",
+    profile_id: 1,
     max_concurrency: 32,
     connect_timeout_ms: 1000,
     ports: [22, 80, 443],
@@ -38,11 +39,21 @@ test("scheduled monitoring and a port policy require explicit opt-in", async () 
                 ? { username: "owner" }
                 : url.endsWith("/scopes")
                   ? [scope]
-                  : url.endsWith("/scopes/1") && options?.method === "PATCH"
-                    ? scope
-                    : url.endsWith("/settings")
-                      ? settings
-                      : { items: [], total: 0, limit: 1, offset: 0 },
+                  : url.endsWith("/profiles")
+                    ? [
+                        {
+                          id: 1,
+                          name: "Default",
+                          description: "",
+                          scope_count: 1,
+                          created_at: "2026-09-27T00:00:00Z",
+                        },
+                      ]
+                    : url.endsWith("/scopes/1") && options?.method === "PATCH"
+                      ? scope
+                      : url.endsWith("/settings")
+                        ? settings
+                        : { items: [], total: 0, limit: 1, offset: 0 },
       }),
     );
   vi.stubGlobal("fetch", fetchMock);

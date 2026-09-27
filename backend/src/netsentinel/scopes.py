@@ -7,7 +7,8 @@ from sqlalchemy.exc import IntegrityError
 
 from netsentinel.alerts import add_event
 from netsentinel.auth import Csrf, CurrentSession, Db, error
-from netsentinel.models import NetworkScope, utcnow
+from netsentinel.models import NetworkProfile, NetworkScope, ScanRun, utcnow
+from netsentinel.profiles import default_profile
 from netsentinel.timeutil import iso_utc
 
 router = APIRouter(prefix="/api/v1/scopes", tags=["scopes"])
@@ -41,6 +42,7 @@ def validate_cidr(value: str) -> str:
 class ScopeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     cidr: str
+    profile_id: int | None = Field(default=None, gt=0)
     approved: bool
     max_concurrency: int = Field(default=32, ge=1, le=32)
     connect_timeout_ms: int = Field(default=1000, ge=100, le=1000)
@@ -61,6 +63,7 @@ class ScopeCreate(BaseModel):
 
 class ScopeUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
+    profile_id: int | None = Field(default=None, gt=0)
     enabled: bool | None = None
     approved: bool = False
     max_concurrency: int | None = Field(default=None, ge=1, le=32)
@@ -79,6 +82,7 @@ class ScopeUpdate(BaseModel):
 
 class ScopeOut(BaseModel):
     id: int
+    profile_id: int | None
     name: str
     cidr: str
     enabled: bool
@@ -91,6 +95,7 @@ class ScopeOut(BaseModel):
 def scope_out(scope: NetworkScope) -> ScopeOut:
     return ScopeOut(
         id=scope.id,
+        profile_id=scope.profile_id,
         name=scope.name,
         cidr=scope.cidr,
         enabled=scope.enabled,
@@ -112,7 +117,13 @@ def list_scopes(db: Db, _user: CurrentSession) -> list[ScopeOut]:
 def create_scope(payload: ScopeCreate, db: Db, _user: CurrentSession, _csrf: Csrf) -> ScopeOut:
     if not payload.approved:
         error("approval_required", "Confirm that you are authorized to scan this range")
+    profile = (
+        db.get(NetworkProfile, payload.profile_id) if payload.profile_id else default_profile(db)
+    )
+    if profile is None:
+        error("not_found", "Profile not found", 404)
     scope = NetworkScope(
+        profile_id=profile.id,
         name=payload.name,
         cidr=payload.cidr,
         enabled=True,
@@ -142,6 +153,13 @@ def update_scope(
         error("not_found", "Scope not found", 404)
     if payload.name is not None:
         scope.name = payload.name
+    if payload.profile_id is not None:
+        if db.get(NetworkProfile, payload.profile_id) is None:
+            error("not_found", "Profile not found", 404)
+        if payload.profile_id != scope.profile_id:
+            if db.scalar(select(ScanRun.id).where(ScanRun.scope_id == scope.id).limit(1)):
+                error("profile_locked", "A scanned range cannot be moved between profiles", 409)
+            scope.profile_id = payload.profile_id
     if payload.enabled is True and not scope.enabled:
         if not payload.approved:
             error("approval_required", "Confirm that you are authorized to scan this range")

@@ -116,20 +116,30 @@ test("empty map explains how to populate it", async () => {
                     }
                   : url.endsWith("/scopes")
                     ? []
-                    : url.endsWith("/settings")
-                      ? {
-                          schedule_enabled: false,
-                          interval_minutes: 30,
-                          offline_threshold: 2,
-                          retention_days: 30,
-                        }
-                      : url.includes("/scans")
-                        ? { items: [], total: 0, limit: 1, offset: 0 }
-                        : {
-                            nodes: [],
-                            links: [],
-                            legend: { inferred: "No physical link verified" },
+                    : url.endsWith("/profiles")
+                      ? [
+                          {
+                            id: 1,
+                            name: "Default",
+                            description: "",
+                            scope_count: 0,
+                            created_at: "2026-09-27T00:00:00Z",
                           },
+                        ]
+                      : url.endsWith("/settings")
+                        ? {
+                            schedule_enabled: false,
+                            interval_minutes: 30,
+                            offline_threshold: 2,
+                            retention_days: 30,
+                          }
+                        : url.includes("/scans")
+                          ? { items: [], total: 0, limit: 1, offset: 0 }
+                          : {
+                              nodes: [],
+                              links: [],
+                              legend: { inferred: "No physical link verified" },
+                            },
       }),
     ),
   );

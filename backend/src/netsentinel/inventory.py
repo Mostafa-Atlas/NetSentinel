@@ -18,33 +18,45 @@ from netsentinel.timeutil import iso_utc
 router = APIRouter(prefix="/api/v1/devices", tags=["devices"])
 
 
-def reconcile_device(db: DBSession, result: ProbeResult, now: datetime | None = None) -> Device:
+def reconcile_device(
+    db: DBSession, result: ProbeResult, now: datetime | None = None, profile_id: int | None = None
+) -> Device:
     """Prefer an observed MAC; retain a separate provisional identity without one.
 
     An IP change alone never merges a MAC-bearing device with another identity.
     MACs can be spoofed or randomized, so this is still observed confidence.
     """
     now = now or utcnow()
+    profile_filter = (
+        Device.profile_id.is_(None) if profile_id is None else Device.profile_id == profile_id
+    )
     if result.mac:
         address = db.scalar(
             select(DeviceAddress)
+            .join(Device, Device.id == DeviceAddress.device_id)
+            .where(profile_filter)
             .where(DeviceAddress.mac == result.mac, DeviceAddress.ip == result.ip)
             .order_by(DeviceAddress.last_seen_at.desc(), DeviceAddress.id.desc())
         )
         if address is None:
             address = db.scalar(
                 select(DeviceAddress)
+                .join(Device, Device.id == DeviceAddress.device_id)
+                .where(profile_filter)
                 .where(DeviceAddress.mac == result.mac)
                 .order_by(DeviceAddress.last_seen_at.desc(), DeviceAddress.id.desc())
             )
     else:
         address = db.scalar(
             select(DeviceAddress)
+            .join(Device, Device.id == DeviceAddress.device_id)
+            .where(profile_filter)
             .where(DeviceAddress.ip == result.ip, DeviceAddress.mac.is_(None))
             .order_by(DeviceAddress.last_seen_at.desc(), DeviceAddress.id.desc())
         )
     if address is None:
         device = Device(
+            profile_id=profile_id,
             display_name=result.ip,
             identity_confidence="observed_mac" if result.mac else "provisional",
             known_state="unknown",
@@ -119,6 +131,7 @@ def device_out(db: DBSession, device: Device) -> dict:
     )
     return {
         "id": device.id,
+        "profile_id": device.profile_id,
         "display_name": device.display_name,
         "identity_confidence": device.identity_confidence,
         "known_state": device.known_state,

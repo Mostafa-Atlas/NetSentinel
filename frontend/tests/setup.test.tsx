@@ -60,6 +60,7 @@ test("discovery requires a visible confirmation before queuing", async () => {
     cidr: "192.168.1.0/24",
     enabled: true,
     approved_at: "2026-09-27T00:00:00Z",
+    profile_id: 1,
     max_concurrency: 32,
     connect_timeout_ms: 1000,
     ports: [22, 80, 443],
@@ -90,9 +91,24 @@ test("discovery requires a visible confirmation before queuing", async () => {
                     }
                   : url.endsWith("/scopes")
                     ? [scope]
-                    : url.includes("/scans") && options?.method === "POST"
-                      ? { id: 1, scope_id: 1, status: "queued", host_count: 0 }
-                      : { items: [], total: 0, limit: 1, offset: 0 },
+                    : url.endsWith("/profiles")
+                      ? [
+                          {
+                            id: 1,
+                            name: "Default",
+                            description: "",
+                            scope_count: 1,
+                            created_at: "2026-09-27T00:00:00Z",
+                          },
+                        ]
+                      : url.includes("/scans") && options?.method === "POST"
+                        ? {
+                            id: 1,
+                            scope_id: 1,
+                            status: "queued",
+                            host_count: 0,
+                          }
+                        : { items: [], total: 0, limit: 1, offset: 0 },
       }),
     );
   vi.stubGlobal("fetch", fetchMock);
