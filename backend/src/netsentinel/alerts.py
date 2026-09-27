@@ -72,6 +72,9 @@ def upsert_alert(
     )
     db.add(alert)
     db.flush()
+    from netsentinel.notifications import queue_alert
+
+    queue_alert(db, alert)
     add_event(db, "alert_triggered", summary, device_id=device_id, evidence_ref=f"alert:{alert.id}")
     return alert, True
 

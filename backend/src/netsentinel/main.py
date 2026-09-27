@@ -19,6 +19,7 @@ from netsentinel import (
     inventory,
     investigation,
     monitoring,
+    notifications,
     profiles,
     scans,
     scopes,
@@ -102,6 +103,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(agents.enrollments_router)
     app.include_router(agents.reports_router)
     app.include_router(monitoring.router)
+    app.include_router(notifications.router)
     app.include_router(views.router)
     app.include_router(alerts.alerts_router)
     app.include_router(alerts.events_router)

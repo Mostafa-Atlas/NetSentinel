@@ -139,6 +139,20 @@ export type MonitoringSettings = {
   interval_minutes: number;
   offline_threshold: number;
   retention_days: number;
+  notification_enabled: boolean;
+};
+export type NotificationStatus = {
+  enabled: boolean;
+  configured: boolean;
+  deliveries: {
+    id: number;
+    alert_id: number;
+    status: "queued" | "delivered" | "failed" | "cancelled";
+    attempts: number;
+    last_attempt_at: string | null;
+    delivered_at: string | null;
+    error_summary: string | null;
+  }[];
 };
 export type Alert = {
   id: number;

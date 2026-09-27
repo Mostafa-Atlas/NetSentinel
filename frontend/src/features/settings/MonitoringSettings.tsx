@@ -3,6 +3,7 @@ import {
   api,
   type ApiError,
   type MonitoringSettings as Settings,
+  type NotificationStatus,
 } from "../../api";
 
 export function MonitoringSettings() {
@@ -11,6 +12,8 @@ export function MonitoringSettings() {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const [notice, setNotice] = React.useState("");
+  const [notifications, setNotifications] =
+    React.useState<NotificationStatus | null>(null);
   React.useEffect(() => {
     api<Settings>("/settings")
       .then(setSettings)
@@ -20,6 +23,15 @@ export function MonitoringSettings() {
         ),
       )
       .finally(() => setLoading(false));
+  }, []);
+  React.useEffect(() => {
+    api<NotificationStatus>("/notifications")
+      .then(setNotifications)
+      .catch((cause) =>
+        setError(
+          (cause as ApiError)?.message || "Unable to load notification status.",
+        ),
+      );
   }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -35,6 +47,7 @@ export function MonitoringSettings() {
         }),
       );
       setNotice("Monitoring settings saved.");
+      setNotifications(await api<NotificationStatus>("/notifications"));
     } catch (cause) {
       setError(
         (cause as ApiError)?.message || "Unable to save monitoring settings.",
@@ -124,6 +137,46 @@ export function MonitoringSettings() {
               Old probe samples are removed daily. Evidence cited by an open
               alert stays until that alert is resolved.
             </p>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={settings.notification_enabled}
+                disabled={!notifications?.configured}
+                onChange={(event) =>
+                  setSettings({
+                    ...settings,
+                    notification_enabled: event.target.checked,
+                  })
+                }
+              />
+              <span>Send new alerts to the configured HTTPS webhook</span>
+            </label>
+            <p className="helper">
+              Off by default. The server operator must set
+              NETSENTINEL_WEBHOOK_URL first. Alert summaries and device IDs
+              leave this installation when enabled; the destination address and
+              token are never shown here.
+            </p>
+            {notifications && Array.isArray(notifications.deliveries) && (
+              <div>
+                <h3>Recent notification deliveries</h3>
+                {notifications.deliveries.length ? (
+                  <ul className="evidence-list">
+                    {notifications.deliveries.map((delivery) => (
+                      <li key={delivery.id}>
+                        Alert #{delivery.alert_id}: {delivery.status} ·{" "}
+                        {delivery.attempts} attempt(s)
+                        {delivery.error_summary && (
+                          <small> · {delivery.error_summary}</small>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty">No notifications queued.</p>
+                )}
+              </div>
+            )}
             {error && (
               <p className="error" role="alert">
                 {error}
