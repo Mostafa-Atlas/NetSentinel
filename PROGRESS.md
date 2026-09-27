@@ -155,3 +155,26 @@ Commit and push status: checkpoint `7ed84cd` pushed and verified on `origin/main
 ### Release limits
 - No real LAN scan was run because no owner-approved range was configured in this session. The field portion of the Phase 1 exit gate remains for an authorized network.
 - The owner explicitly approved the P7 commits and normal push after automatic approval review initially rejected publication. Phase 2 has not started.
+
+## Period P8 — Identity and profiles
+Status: complete locally; Phase 2 continues with P9
+Human work time: not recorded
+Commits and push status: implementation checkpoint `713331e` pushed to `origin/main`; final P8 documentation commit and remote verification are reported in the session handoff.
+
+### Delivered
+- Named profiles with per-profile approved scopes and authenticated configuration export. Existing data migrates to Default; overlapping private CIDRs in different profiles keep separate inventories.
+- Identity review candidates plus owner-confirmed merge and address split. Conflicting observed MACs and ambiguous historical observations are refused; address provenance is recorded for new scans.
+- Settings profile creation/selection/export and device-detail review controls.
+
+### Checks
+- Backend Ruff format/lint, mypy, and pytest pass (24 tests at implementation checkpoint). A further existing-database upgrade test passed after the checkpoint.
+- Frontend Prettier, ESLint, Vitest (11 tests), and production build pass.
+- Controlled browser flow runs in backend pytest; no live LAN scan was run. A manual visual browser check was not completed in this session.
+
+### Decisions and limitations
+- Existing observations without a recorded IP remain intact but cannot be assigned to a split address safely.
+- Profile exports contain private network details and require explicit approval before use on another installation. Profile import is not part of P8.
+- Phase 1's authorized-LAN field validation and Compose runtime smoke check remain outstanding; neither is claimed complete by P8.
+
+### Next
+- P9 — optional passive mDNS/SSDP enrichment with strict parsing and source confidence.

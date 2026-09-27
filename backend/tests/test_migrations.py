@@ -48,3 +48,35 @@ def test_fresh_migrations(tmp_path: Path) -> None:
     )
     with closing(sqlite3.connect(database)) as db:
         assert db.execute("SELECT value FROM settings WHERE key = 'drill'").fetchone() == ("true",)
+
+
+def test_phase_two_upgrade_preserves_existing_inventory(tmp_path: Path) -> None:
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    database = tmp_path / "existing.db"
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{database.as_posix()}")
+    command.upgrade(config, "0004")
+    with closing(sqlite3.connect(database)) as db:
+        db.execute(
+            "INSERT INTO network_scopes "
+            "(id, name, cidr, enabled, approved_at, max_concurrency, "
+            "connect_timeout_ms, ports, created_at) "
+            "VALUES (1, 'Home', '10.0.0.0/28', 1, CURRENT_TIMESTAMP, "
+            "1, 100, '80', CURRENT_TIMESTAMP)"
+        )
+        db.execute(
+            "INSERT INTO devices "
+            "(id, display_name, identity_confidence, known_state, notes, "
+            "first_seen_at, last_seen_at) "
+            "VALUES (1, 'Desk', 'observed_mac', 'known', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+        )
+        db.execute(
+            "INSERT INTO device_addresses "
+            "(device_id, ip, mac, first_seen_at, last_seen_at) "
+            "VALUES (1, '10.0.0.7', 'aa:bb:cc:dd:ee:01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+        )
+        db.commit()
+    command.upgrade(config, "head")
+    with closing(sqlite3.connect(database)) as db:
+        assert db.execute("SELECT profile_id, enabled FROM network_scopes").fetchone() == (1, 1)
+        assert db.execute("SELECT profile_id, display_name FROM devices").fetchone() == (1, "Desk")
+        assert db.execute("SELECT ip FROM device_addresses").fetchone() == ("10.0.0.7",)
