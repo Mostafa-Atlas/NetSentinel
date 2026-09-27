@@ -89,3 +89,16 @@ def test_phase_two_upgrade_preserves_existing_inventory(tmp_path: Path) -> None:
         assert db.execute("SELECT profile_id, enabled FROM network_scopes").fetchone() == (1, 1)
         assert db.execute("SELECT profile_id, display_name FROM devices").fetchone() == (1, "Desk")
         assert db.execute("SELECT ip FROM device_addresses").fetchone() == ("10.0.0.7",)
+
+
+def test_environment_database_url_controls_migrations(tmp_path: Path, monkeypatch) -> None:
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    default_database = tmp_path / "wrong.db"
+    configured_database = tmp_path / "configured.db"
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{default_database.as_posix()}")
+    monkeypatch.setenv("NETSENTINEL_DATABASE_URL", f"sqlite:///{configured_database.as_posix()}")
+    command.upgrade(config, "head")
+    assert configured_database.exists()
+    assert not default_database.exists()
+    with closing(sqlite3.connect(configured_database)) as db:
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("0010",)

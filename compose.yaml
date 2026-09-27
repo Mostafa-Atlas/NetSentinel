@@ -5,6 +5,9 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - netsentinel-data:/data
+    environment:
+      NETSENTINEL_WEBHOOK_URL: ${NETSENTINEL_WEBHOOK_URL:-}
+      NETSENTINEL_WEBHOOK_TOKEN: ${NETSENTINEL_WEBHOOK_TOKEN:-}
     restart: unless-stopped
 
 volumes:

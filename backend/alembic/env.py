@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -7,6 +8,8 @@ from netsentinel import models  # noqa: F401 - imports table metadata
 from netsentinel.db import Base
 
 config = context.config
+if database_url := os.getenv("NETSENTINEL_DATABASE_URL"):
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 if config.config_file_name and config.file_config.has_section("loggers"):
     fileConfig(config.config_file_name)
 target_metadata = Base.metadata

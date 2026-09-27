@@ -262,3 +262,24 @@ Commits and push status: implementation checkpoint `01f79fd` pushed to `origin/m
 
 ### Next
 - P13 — optional notifications, retention controls, load checks, backup/restore drill, and release review.
+
+## Period P13 — Notifications and hardening
+Status: complete locally; Phase 2 field verification remains outstanding
+Human work time: not recorded
+Commits and push status: implementation checkpoint `9c10b0f` pushed to `origin/main`; final documentation commit and remote verification are reported in the session handoff.
+
+### Delivered
+- Optional HTTPS webhook destination supplied through server environment, explicit owner opt-in, persisted new-alert outbox, three-attempt retry status, and cancellation of queued messages on disable.
+- Retention for passive hints, monitor checks, agent reports/nonces, and completed notification records. Open-alert observations, services, and checks retain cited evidence.
+- Synthetic 128-device/1,024-observation load and SQLite backup/restore script using a migrated temporary database. Compose passes the optional webhook environment variables.
+
+### Checks
+- Backend Ruff lint/format, mypy, and pytest pass (40 tests), including opt-in, deduplication, retries, disable, retention, migration, and configured database URL selection.
+- Frontend Prettier, ESLint, Vitest (11 tests), and production build pass. `docker compose config --quiet` and image build pass.
+- Isolated container smoke test passes with networking disabled and temporary `/data`: startup migration, `/health`, and bootstrap status all succeeded. Build context reduced to about 407 kB after excluding local files.
+- Synthetic database response times on this Windows host: overview 0.140 s, first inventory page 0.103 s, topology 0.119 s. Backup/restore integrity and row counts passed.
+- No live authorized LAN, multicast, real agent, HTTPS proxy, or webhook receiver field run was performed. The controlled Chrome browser test uses a fake probe.
+
+### Phase 2 exit review
+- All Phase 2 network and outbound features default off; the Phase 1 flow passes the controlled test suite.
+- Optional integrations have tests and documented opt-in. Synthetic populated-database responses were measured. Field verification on the owner's authorized network and deployment remains the outstanding exit-gate evidence.
