@@ -1,4 +1,5 @@
 import React from "react";
+import { CheckRules } from "./CheckRules";
 import {
   CartesianGrid,
   Line,
@@ -568,6 +569,7 @@ export function Devices({
               </p>
             )}
           </section>
+          <CheckRules key={detail.id} deviceId={detail.id} />
           <section className="history-section">
             <h3>Device events</h3>
             {events.length ? (

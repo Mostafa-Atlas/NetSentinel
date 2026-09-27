@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from netsentinel import (
     alerts,
     auth,
+    check_rules,
     identity,
     inventory,
     monitoring,
@@ -92,6 +93,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(scans.router)
     app.include_router(inventory.router)
     app.include_router(identity.router)
+    app.include_router(check_rules.devices_router)
+    app.include_router(check_rules.rules_router)
     app.include_router(monitoring.router)
     app.include_router(views.router)
     app.include_router(alerts.alerts_router)

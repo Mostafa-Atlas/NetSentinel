@@ -50,61 +50,72 @@ test("inventory opens evidence and saves an owner label", async () => {
                           { id: 1, ip: "10.0.0.7", mac: "aa:bb:cc:dd:ee:ff" },
                         ],
                       }
-                    : url.includes("/devices/1/hints?")
+                    : url.endsWith("/devices/1/check-rules") &&
+                        options?.method === "POST"
                       ? {
-                          items: [
-                            {
-                              id: 1,
-                              scan_run_id: 1,
-                              ip: "10.0.0.7",
-                              source: "mdns",
-                              kind: "hostname",
-                              value: "desk.local",
-                              confidence: "unverified_advertisement",
-                              observed_at: "2026-09-27T00:00:00Z",
-                            },
-                          ],
-                          total: 1,
+                          id: 1,
+                          device_id: 1,
+                          port: 80,
+                          enabled: true,
+                          failure_threshold: 2,
                         }
-                      : url.endsWith("/devices/1/observations?limit=30")
-                        ? {
-                            items: [
-                              {
-                                id: 1,
-                                scan_run_id: 1,
-                                observed_at: "2026-09-27T00:00:00Z",
-                                source: "tcp",
-                                reachable: true,
-                                latency_ms: 4,
-                                raw_summary: "Mocked connect",
-                              },
-                            ],
-                            total: 1,
-                          }
-                        : url.includes("/services?")
-                          ? { items: [], total: 0 }
-                          : url.includes("/events?device_id=1")
+                      : url.endsWith("/devices/1/check-rules")
+                        ? []
+                        : url.includes("/devices/1/hints?")
+                          ? {
+                              items: [
+                                {
+                                  id: 1,
+                                  scan_run_id: 1,
+                                  ip: "10.0.0.7",
+                                  source: "mdns",
+                                  kind: "hostname",
+                                  value: "desk.local",
+                                  confidence: "unverified_advertisement",
+                                  observed_at: "2026-09-27T00:00:00Z",
+                                },
+                              ],
+                              total: 1,
+                            }
+                          : url.endsWith("/devices/1/observations?limit=30")
                             ? {
                                 items: [
                                   {
-                                    id: 5,
-                                    summary: "New device observed",
-                                    event_type: "alert_triggered",
-                                    actor: "system",
-                                    occurred_at: "2026-09-27T00:00:00Z",
-                                    evidence_ref: "alert:1",
+                                    id: 1,
+                                    scan_run_id: 1,
+                                    observed_at: "2026-09-27T00:00:00Z",
+                                    source: "tcp",
+                                    reachable: true,
+                                    latency_ms: 4,
+                                    raw_summary: "Mocked connect",
                                   },
                                 ],
                                 total: 1,
                               }
-                            : url.endsWith("/devices/1") &&
-                                options?.method === "PATCH"
-                              ? {
-                                  ...device,
-                                  display_name: "Desk",
-                                  known_state: "known",
-                                }
-                              : device,
+                            : url.includes("/services?")
+                              ? { items: [], total: 0 }
+                              : url.includes("/events?device_id=1")
+                                ? {
+                                    items: [
+                                      {
+                                        id: 5,
+                                        summary: "New device observed",
+                                        event_type: "alert_triggered",
+                                        actor: "system",
+                                        occurred_at: "2026-09-27T00:00:00Z",
+                                        evidence_ref: "alert:1",
+                                      },
+                                    ],
+                                    total: 1,
+                                  }
+                                : url.endsWith("/devices/1") &&
+                                    options?.method === "PATCH"
+                                  ? {
+                                      ...device,
+                                      display_name: "Desk",
+                                      known_state: "known",
+                                    }
+                                  : device,
       }),
     );
   vi.stubGlobal("fetch", fetchMock);
@@ -118,6 +129,7 @@ test("inventory opens evidence and saves an owner label", async () => {
   expect(screen.getByText("desk.local")).toBeTruthy();
   expect(screen.getByText(/MDNS · unverified/)).toBeTruthy();
   expect(screen.getByText("Device events")).toBeTruthy();
+  expect(screen.getByText("Service check rules")).toBeTruthy();
   expect(screen.getByText("New device observed")).toBeTruthy();
   fireEvent.change(screen.getByLabelText("Alerts"), {
     target: { value: "open" },
@@ -138,4 +150,6 @@ test("inventory opens evidence and saves an owner label", async () => {
         url === "/api/v1/devices/1" && options?.method === "PATCH",
     ),
   ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Add check rule" }));
+  expect(await screen.findByText(/TCP 80 rule added/)).toBeTruthy();
 });

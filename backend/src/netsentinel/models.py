@@ -152,6 +152,34 @@ class DeviceHint(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class MonitorRule(Base):
+    __tablename__ = "monitor_rules"
+    __table_args__ = (UniqueConstraint("device_id", "port", name="uq_monitor_rule_device_port"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    port: Mapped[int] = mapped_column(Integer)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    failure_threshold: Mapped[int] = mapped_column(Integer, default=2)
+    quiet_start_hour: Mapped[int | None] = mapped_column(Integer)
+    quiet_end_hour: Mapped[int | None] = mapped_column(Integer)
+    maintenance_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class MonitorCheck(Base):
+    __tablename__ = "monitor_checks"
+    __table_args__ = (UniqueConstraint("rule_id", "scan_run_id", name="uq_monitor_check_run"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    rule_id: Mapped[int] = mapped_column(
+        ForeignKey("monitor_rules.id", ondelete="CASCADE"), index=True
+    )
+    scan_run_id: Mapped[int] = mapped_column(ForeignKey("scan_runs.id", ondelete="CASCADE"))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    state: Mapped[str] = mapped_column(String(20))
+    suppressed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class Alert(Base):
     __tablename__ = "alerts"
     __table_args__ = (

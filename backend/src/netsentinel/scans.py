@@ -9,6 +9,7 @@ from sqlalchemy import func, select, update
 
 from netsentinel.alerts import add_event, resolve_rule, upsert_alert
 from netsentinel.auth import Csrf, CurrentSession, Db, error
+from netsentinel.check_rules import evaluate_scan_rules
 from netsentinel.discovery import ProbeResult
 from netsentinel.inventory import reconcile_device
 from netsentinel.models import (
@@ -295,6 +296,8 @@ async def execute_scan(app, run_id: int) -> None:
                             observed_at=now,
                         )
                     )
+            db.flush()
+            evaluate_scan_rules(db, run, scope)
             run.host_count = len(results)
             run.status = "completed"
             run.finished_at = utcnow()

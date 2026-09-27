@@ -98,6 +98,25 @@ export type PassiveHint = {
   confidence: "unverified_advertisement";
   observed_at: string;
 };
+export type CheckRule = {
+  id: number;
+  device_id: number;
+  port: number;
+  enabled: boolean;
+  failure_threshold: number;
+  quiet_start_hour: number | null;
+  quiet_end_hour: number | null;
+  maintenance_until: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type MonitorCheck = {
+  id: number;
+  scan_run_id: number;
+  observed_at: string;
+  state: "reachable" | "unreachable" | "unknown";
+  suppressed: boolean;
+};
 export type MonitoringSettings = {
   schedule_enabled: boolean;
   interval_minutes: number;
