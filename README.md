@@ -2,11 +2,78 @@
 
 Self-hosted inventory and monitoring for a network you own or administer. The dashboard starts on localhost and performs no discovery until an administrator explicitly approves a private IPv4 scope.
 
-## Local development
+## Run with Docker
 
-Requirements: Python 3.12+, Node 24+, and pnpm 11. From `backend`, create a virtual environment, run `pip install -r requirements.lock` and `pip install -e . --no-deps`, then run `alembic upgrade head` and `uvicorn netsentinel.main:app --reload --host 127.0.0.1`. From `frontend`, run `pnpm install --frozen-lockfile` and `pnpm dev`. Open <http://127.0.0.1:5173>.
+Requires Docker with Compose. From the repository root:
 
-On Windows PowerShell, use `py -3.12 -m venv .venv`, `& .\.venv\Scripts\python.exe -m pip install -r requirements.lock`, `& .\.venv\Scripts\python.exe -m pip install -e . --no-deps`, `& .\.venv\Scripts\alembic.exe upgrade head`, and `& .\.venv\Scripts\uvicorn.exe netsentinel.main:app --reload --host 127.0.0.1`. Linux uses `python3.12 -m venv .venv` and `.venv/bin/` equivalents.
+```sh
+docker compose up -d --build
+docker compose ps
+```
+
+Open <http://127.0.0.1:8000>. The container applies database migrations on startup and stores its SQLite database in the `netsentinel-data` Docker volume. To view startup errors, run `docker compose logs --tail=100 netsentinel`. To stop the app, run `docker compose down`; the named database volume is retained.
+
+## Run locally for development
+
+Requires Python 3.12+, Node.js 24+, and pnpm 11. These commands create `.venv` at the repository root. Run the setup commands once, then keep the backend and frontend running in separate terminals.
+
+### Windows PowerShell
+
+From the repository root, install dependencies:
+
+```powershell
+py -3.12 -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install -r backend\requirements.lock
+& .\.venv\Scripts\python.exe -m pip install -e .\backend --no-deps
+```
+
+Terminal 1, from the repository root:
+
+```powershell
+cd backend
+& ..\.venv\Scripts\python.exe -m alembic upgrade head
+& ..\.venv\Scripts\python.exe -m uvicorn netsentinel.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Terminal 2, from the repository root:
+
+```powershell
+cd frontend
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+### Linux or macOS
+
+From the repository root, install dependencies:
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r backend/requirements.lock
+.venv/bin/python -m pip install -e ./backend --no-deps
+```
+
+Terminal 1, from the repository root:
+
+```sh
+cd backend
+../.venv/bin/python -m alembic upgrade head
+../.venv/bin/python -m uvicorn netsentinel.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Terminal 2, from the repository root:
+
+```sh
+cd frontend
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Open <http://127.0.0.1:5173>. Vite forwards API requests to the backend on port 8000. The local SQLite database is `backend/netsentinel.db`, separate from Docker's volume. Stop each development server with `Ctrl+C`.
+
+## First use
+
+Create the administrator account in the browser. In Settings, add a private IPv4 range that you own or administer and confirm authorization. Then use **Run discovery** on that range. Automatic monitoring, passive hints, host agents, and outbound notifications stay off until you enable them.
 
 ## Checks
 
