@@ -200,3 +200,25 @@ Commits and push status: implementation checkpoint `a690a0e` pushed to `origin/m
 
 ### Next
 - P10 — per-device checks, thresholds, maintenance windows, and rule editing.
+
+## Period P10 — Check rules
+Status: complete locally; Phase 2 continues with P11
+Human work time: not recorded
+Commits and push status: implementation checkpoint `3b48c24` pushed to `origin/main`; final P10 documentation commit and remote verification are reported in the session handoff.
+
+### Delivered
+- Per-device TCP service check rules limited to enabled approved scope ports, with 2–10 consecutive-miss thresholds and one persisted result per rule and scan.
+- UTC quiet hours and bounded maintenance windows that suppress new alerts while preserving history; recovery resolves an open check-rule alert.
+- Device-detail rule editor, check history, and validated authenticated API.
+
+### Checks
+- Backend Ruff format/lint, mypy, and pytest pass (32 tests), including rule validation, thresholds, recovery, suppression, and migrations.
+- Frontend Prettier, ESLint, Vitest (11 tests), and production build pass.
+- The controlled Chrome flow remains in backend pytest. No real LAN scan or visual manual check was performed for P10.
+
+### Decisions and limitations
+- Rules evaluate existing approved scan results. They do not add independent probes or a faster per-device interval.
+- A missed TCP check is an observation, not a vulnerability finding; firewalls or sleep may explain it.
+
+### Next
+- P11 — optional authenticated outbound host agent and replay protection.
