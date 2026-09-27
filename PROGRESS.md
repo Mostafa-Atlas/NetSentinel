@@ -178,3 +178,25 @@ Commits and push status: implementation checkpoint `713331e` pushed to `origin/m
 
 ### Next
 - P9 — optional passive mDNS/SSDP enrichment with strict parsing and source confidence.
+
+## Period P9 — Passive enrichment
+Status: complete locally; Phase 2 continues with P10
+Human work time: not recorded
+Commits and push status: implementation checkpoint `a690a0e` pushed to `origin/main`; final P9 documentation commit and remote verification are reported in the session handoff.
+
+### Delivered
+- Opt-in mDNS/SSDP multicast listening during approved scans, with strict bounded parsing and no discovery requests sent by this listener.
+- In-scope, unverified hostname and advertised-type hints attached only to already observed devices. Source, timestamp, scan, and confidence are visible in device detail and a paginated API.
+- Renewed policy approval to change passive listening; default off. Listener failure does not block normal scans.
+
+### Checks
+- Backend Ruff format/lint, mypy, and pytest pass (29 tests). Parser, out-of-scope rejection, opt-in, persistence, CSRF, and policy approval are covered with controlled inputs.
+- Frontend Prettier, ESLint, Vitest (11 tests), and production build pass.
+- No live LAN scan or multicast capture was run; behavior on the owner's interface and under Compose remains unverified.
+
+### Decisions and limitations
+- Only mDNS A names and SSDP alive advertised types are retained. No XML description URL is fetched, and hints cannot create inventory entries or confirmed services.
+- A device on another interface using the same private IP could send an ambiguous advertisement; every hint remains explicitly unverified.
+
+### Next
+- P10 — per-device checks, thresholds, maintenance windows, and rule editing.

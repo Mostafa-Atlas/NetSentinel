@@ -224,7 +224,7 @@ function ScopeSettings() {
     const addresses = 2 ** (32 - Number(scope.cidr.split("/")[1]));
     if (
       !window.confirm(
-        `Scan ${scope.cidr}? This may contact up to ${addresses} addresses on ${scope.ports.length} TCP ports with at most ${scope.max_concurrency} concurrent probes.`,
+        `Scan ${scope.cidr}? This may contact up to ${addresses} addresses on ${scope.ports.length} TCP ports with at most ${scope.max_concurrency} concurrent probes.${scope.passive_enabled ? " It will also listen briefly for mDNS and SSDP advertisements." : ""}`,
       )
     )
       return;

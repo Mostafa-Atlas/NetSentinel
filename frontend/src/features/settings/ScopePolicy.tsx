@@ -102,7 +102,10 @@ export function ScopePolicy({
           checked={approved}
           onChange={(event) => setApproved(event.target.checked)}
         />
-        <span>I approve this bounded probe policy for this range.</span>
+        <span>
+          I approve this probe and optional passive listening policy for this
+          range.
+        </span>
       </label>
       {error && (
         <p className="error" role="alert">

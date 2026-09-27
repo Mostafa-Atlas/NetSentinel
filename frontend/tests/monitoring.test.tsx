@@ -68,7 +68,7 @@ test("scheduled monitoring and a port policy require explicit opt-in", async () 
   expect(policySave.hasAttribute("disabled")).toBe(true);
   fireEvent.click(
     screen.getByLabelText(
-      "I approve this bounded probe policy for this range.",
+      "I approve this probe and optional passive listening policy for this range.",
     ),
   );
   fireEvent.click(policySave);
